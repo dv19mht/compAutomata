@@ -1,16 +1,34 @@
 import antlr4_generated.LTLfFormulaParserLexer;
 import antlr4_generated.LTLfFormulaParserParser;
+import antlr4_generated.PropFormulaParserLexer;
+import antlr4_generated.PropFormulaParserParser;
+import automaton.PossibleWorldWrap;
+import automaton.QuotedFormulaStateFactory;
+import automaton.QuotedFormulaStateFactory.QuotedFormulaState;
+import automaton.TransitionLabel;
 import formula.*;
-import formula.ldlf.LDLfFormula;
-import formula.ldlf.LDLfTempOpTempFormula;
+import formula.ldlf.*;
 import formula.ltlf.*;
-import formula.regExp.RegExp;
+import formula.quotedFormula.QuotedVar;
+import formula.regExp.*;
+import net.sf.tweety.logics.pl.syntax.Conjunction;
+import net.sf.tweety.logics.pl.syntax.Proposition;
+import net.sf.tweety.logics.pl.syntax.PropositionalFormula;
+import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.junit.Test;
-import rationals.Automaton;
+import rationals.*;
+import rationals.transformations.Concatenation;
+import rationals.transformations.Reducer;
+import scala.sys.Prop;
+import utils.AutomatonUtils;
 import visitors.LTLfVisitors.LTLfVisitor;
+import visitors.PropVisitor.LocalVisitor;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.Assert.*;
 
@@ -20,31 +38,288 @@ public class ParseLTLfFormulaTest {
     LTLfFormula ltl;
     LDLfFormula ldl;
 
+    String strA = "a";
+    String strNotA = "!a";
+    String strAandB = "a && b";
+    String strAorB = "a || b";
+    String strAimplB = "a -> b";
+    String strNextA = "X(a)";
+    String strEventuallyA = "F(a)";
+    String strGlobalA = "G(a)";
+    String strAuntilB = "a U b";
+    String strAweakUntilB = "a W b";
+    String strAreleaseB = "a R B";
+    String strAdoubleImpB = "a <-> b";
+    String strLast = "last";
+    String strTrue = "true";
+    String strFalse = "False";
+
     @Test
-    public void LDLfToAutomatonTest() {
-        //input: atomic, atomic regexp, localVar regexp
-        //which type to build?
-        //Set<Q> states, Set<L> alphabet/labels, I initialState, Set<T> finalStates, Set<D> transitions
+    public void stringToPropFormula() {
+        Proposition a = new Proposition("a");
+        Proposition b = new Proposition("b");
+        PropositionalFormula aANDb = new Conjunction(a, b);
+        System.out.println(aANDb);
+        ldl = parseLocalFormula(aANDb.toString());
+        System.out.println(ldl);
+    }
+
+    @Test
+    public void elementalAutomatonTest() {
+        Automaton automaton;
+
+        PropositionalSignature ps = generateSignature();
+        automaton = getElementalAutomaton(new RegExpLocalVar(new Proposition("a")), ps);
+        System.out.println(automaton.toString());
+        System.out.println("------------------------\n");
 
     }
 
     @Test
-    public void stringParserTest() {
+    public void LDLfToAutomatonTest() {
+        boolean declare = true;
+        PropositionalSignature ps = generateSignature();
+        //input: atomic, atomic regexp, localVar regexp
+
+        formulaToCompareAutomatons(stringToLDLf("true"), declare, ps);
+
+//        formulaToCompareAutomatons(stringToLDLf("False"), declare, ps);
+//
+//        formulaToCompareAutomatons(stringToLDLf("a"), declare, ps);
+//
+//        formulaToCompareAutomatons(stringToLDLf("!a"), declare, ps);
+//
+//        formulaToCompareAutomatons(stringToLDLf("!a && b"), declare, ps);
+//
+//        stringToAutomaton("a || b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("a -> b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("X(a)", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("F(a)", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("G(a)", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("a U b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("a W b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("a R b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("a <-> b", declare, ps);
+//        System.out.println("------------------------\n");
+//
+//        stringToAutomaton("last", declare, ps);
+//        System.out.println("------------------------\n");
+    }
+
+    private void formulaToCompareAutomatons(LDLfFormula formula, boolean declare, PropositionalSignature ps) {
+        System.out.println("Formula: " + formula);
+
         Automaton automaton;
-
-        stringToAutomaton("a");
+        automaton = LDLfToAutomaton(declare, formula, ps);
+        System.out.println("Compositional:");
+        System.out.println(automaton.toString());
         System.out.println("------------------------\n");
 
-        stringToAutomaton("true");
+        automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps);
+//        System.out.println("LDLf2DFA:");
+//        System.out.println(automaton.toString());
+//        System.out.println("------------------------\n");
+
+        automaton = new Reducer().transform(automaton);
+        System.out.println("LDLf2DFA reduced:");
+        System.out.println(automaton.toString());
+        System.out.println("------------------------\n");
+    }
+
+    private Automaton getElementalAutomaton(Formula formula, PropositionalSignature ps) {
+        switch (formula.getFormulaType()) {
+            case LDLf_tt -> { return getElementalTt(ps); }
+            case LDLf_ff -> { return getElementalFf(ps); }
+//            case LDLf_LOCAL_VAR -> { return getElementalLocalVar(ps, (LDLfFormula) formula); }
+//            case RE_LOCAL_VAR -> { return getElementalRegExpLocalVar(ps, (RegExpLocalVar) formula); }
+            default -> {
+                return new Automaton();//throw new RuntimeException("Not implemented yet: " + formula);
+            }
+        }
+    }
+
+    private Automaton getElementalRegExpLocalVar(PropositionalSignature ps, RegExpLocalVar formula) {
+        QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
+        Automaton automaton = new Automaton(stateFactory);
+        stateFactory.setAutomaton(automaton);
+
+        Set<TransitionLabel> allLabels = AutomatonUtils.buildAllLables(true, ps);
+
+        Set<QuotedVar> initialStateFormulas = new HashSet<>();
+
+        /*
+        Translate RegExp to LDLf
+         */
+        QuotedVar quotedVar = new QuotedVar(new LDLfLocalVar(formula.getProp()));
+
+        /*
+        RegExp DFA has 3 states.
+        For labels that satisfy the propositional formula, transition to endState, else to falseState.
+         */
+        QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, false, initialStateFormulas);
+        QuotedFormulaState falseState = (QuotedFormulaState) stateFactory.create(false, false, new HashSet<>()); //should hold all that does not satisfy prop
+        QuotedFormulaState endState = (QuotedFormulaState) stateFactory.create(false, true, new HashSet<>());
+
+
+        for (TransitionLabel l : allLabels) {
+            PossibleWorldWrap pw = (PossibleWorldWrap) l;
+            Transition<TransitionLabel> t;
+
+            if (pw.satisfies(formula.regExpLocal2Propositional())) {
+                t = new Transition<>(initialState, pw, endState);
+            } else {
+                t = new Transition<>(initialState, pw, falseState);
+            }
+
+            try {
+                automaton.addTransition(t);
+            } catch (NoSuchStateException e) {
+                e.printStackTrace();
+            }
+        }
+
+        addAllLoopingTransitions(allLabels, automaton, falseState);
+
+//        initialStateFormulas.add(quotedVar);
+        /*
+        Create emptyTrace special label (why?)
+         */
+//        TransitionLabel emptyTrace = new EmptyTrace();
+//        QuotedFormula currentFormula = initialState.getQuotedConjunction();
+//        QuotedFormula deltaResult = currentFormula.delta(emptyTrace);
+//        Set<Set<QuotedVar>> allMinimalModels = deltaResult.getMinimalModels();
+//
+//        if (allMinimalModels.isEmpty()) {
+//            // The false state (?)
+//        }
+
+
+
+        return automaton;
+    }
+
+    private Automaton getElementalLocalVar(PropositionalSignature ps, LDLfFormula formula) {
+        Automaton automaton = new Automaton();
+        State initialState = automaton.addState(true, false);
+//        Set<PossibleWorld> models = propFormula.getModels();
+//        for (PossibleWorld p : models) {
+//            try {
+//                automaton.addTransition(new Transition(initialState, p, initialState));
+//            } catch (NoSuchStateException e) {
+//                System.err.println(e.toString());
+//            }
+//        }
+        return automaton;
+    }
+
+    private Automaton getElementalFf(PropositionalSignature ps) {
+        QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
+        Automaton automaton = new Automaton(stateFactory);
+        stateFactory.setAutomaton(automaton);
+
+        Set<TransitionLabel> allLabels = AutomatonUtils.buildAllLables(true, ps);
+        Set<QuotedVar> initialStateFormulas = new HashSet<>();
+
+        /*
+        Only one state in elemental ff automaton, it is initial but not terminal.
+         */
+        QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, false, initialStateFormulas);
+
+        addAllLoopingTransitions(allLabels, automaton, initialState);
+
+        return automaton;
+    }
+
+    private Automaton getElementalTt(PropositionalSignature ps) {
+        QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
+        Automaton automaton = new Automaton(stateFactory);
+        stateFactory.setAutomaton(automaton);
+
+        Set<TransitionLabel> allLabels = AutomatonUtils.buildAllLables(true, ps);
+
+        /*
+        Empty set of quoted formulas in elemental tt automaton
+         */
+        Set<QuotedVar> initialStateFormulas = new HashSet<>();
+
+        /*
+        Only one state in elemental tt automaton, it is both initial and terminal.
+         */
+        QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, true, initialStateFormulas);
+
+        addAllLoopingTransitions(allLabels, automaton, initialState);
+
+        return automaton;
+    }
+
+    private void addAllLoopingTransitions(Set<TransitionLabel> allLabels, Automaton automaton, QuotedFormulaState toState) {
+        /*
+        Add all looping transitions
+         */
+        for (TransitionLabel label : allLabels) {
+            Transition<TransitionLabel> transition = new Transition<>(toState, label, toState);
+            try {
+                automaton.addTransition(transition);
+            } catch (NoSuchStateException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private LDLfFormula stringToLDLf(String input) {
+        LTLfFormula ltl = parseLTLfFormula(input);
+        LDLfFormula ldl = ltl.toLDLf();
+        ldl = (LDLfFormula) ldl.nnf();
+        return ldl;
+    }
+
+    private PropositionalSignature generateSignature() {
+        PropositionalSignature ps = new PropositionalSignature();
+
+        Proposition a = new Proposition("a");
+        Proposition b = new Proposition("b");
+
+        ps.add(a);
+        ps.add(b);
+
+        return ps;
+    }
+
+    @Test
+    public void stringParserTest() {
+        boolean declare = true;
+        Automaton automaton;
+        PropositionalSignature ps = generateSignature();
+
+        stringToAutomaton("a", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("False");
+        stringToAutomaton("true", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("!a");
+        stringToAutomaton("False", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a && b");
+        stringToAutomaton("!a", declare, ps);
+        System.out.println("------------------------\n");
+
+        stringToAutomaton("a && b", declare, ps);
         System.out.println("------------------------\n");
 
         ltlA = parseLTLfFormula("a");
@@ -55,29 +330,29 @@ public class ParseLTLfFormulaTest {
         System.out.println("ldl: " + ldl);
         ldl = (LDLfFormula) ldl.nnf();
         System.out.println("nnf: " + ldl);
-        automaton = LDLfToAutomaton(ldl);
-        assertNull(automaton);
+        automaton = LDLfToAutomaton(declare, ldl, ps);
+        assertNotNull(automaton);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a || b");
+        stringToAutomaton("a || b", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a -> b");
+        stringToAutomaton("a -> b", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("X(a)");
+        stringToAutomaton("X(a)", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("F(a)");
+        stringToAutomaton("F(a)", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("G(a)");
+        stringToAutomaton("G(a)", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a U b");
+        stringToAutomaton("a U b", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a W b");
+        stringToAutomaton("a W b", declare, ps);
         System.out.println("------------------------\n");
 
         ltlA = parseLTLfFormula("a");
@@ -88,21 +363,21 @@ public class ParseLTLfFormulaTest {
         System.out.println("ldl: " + ldl);
         ldl = (LDLfFormula) ldl.nnf();
         System.out.println("nnf: " + ldl);
-        automaton = LDLfToAutomaton(ldl);
-        assertNull(automaton);
+        automaton = LDLfToAutomaton(declare, ldl, ps);
+        assertNotNull(automaton);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a R b");
+        stringToAutomaton("a R b", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("a <-> b");
+        stringToAutomaton("a <-> b", declare, ps);
         System.out.println("------------------------\n");
 
-        stringToAutomaton("last");
+        stringToAutomaton("last", declare, ps);
         System.out.println("------------------------\n");
     }
 
-    private void stringToAutomaton(String input) {
+    private void stringToAutomaton(String input, boolean declare, PropositionalSignature ps) {
         //1. parse input string to LTLfFormula
         ltl = parseLTLfFormula(input);
         System.out.println("ltl: " + ltl);
@@ -116,38 +391,40 @@ public class ParseLTLfFormulaTest {
         System.out.println("nnf: " + ldl);
 
         //4. parse LDLfFormula
-        Automaton automaton = LDLfToAutomaton(ldl);
-        assertNull(automaton);
+        Automaton automaton = LDLfToAutomaton(declare, ldl, ps);
+        assertNotNull(automaton);
     }
 
-    private Automaton LDLfToAutomaton(LDLfFormula formula) {
-        Automaton automaton = null;
+    private Automaton LDLfToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps) {
+        Automaton automaton;
 
         /*
         * Base case when the formula is an atomic proposition
         */
         if (formula instanceof AtomicFormula) {
-            System.out.println("atomic: " + formula);
-            return automaton;
+            System.out.println("atomic: " + formula + " type: " +formula.getFormulaType());
+            return getElementalAutomaton(formula, ps);
         }
 
         /* Else parse subformula */
         if (formula instanceof UnaryFormula) {
             UnaryFormula uFormula = (UnaryFormula) formula;
             LDLfFormula nested = (LDLfFormula) uFormula.getNestedFormula();
-            automaton = LDLfToAutomaton(nested);
+            automaton = LDLfToAutomaton(declare, nested, ps);
         } else if (formula instanceof BinaryFormula) {
             BinaryFormula bFormula = (BinaryFormula) formula;
             LDLfFormula left = (LDLfFormula) bFormula.getLeftFormula();
             LDLfFormula right = (LDLfFormula) bFormula.getRightFormula();
-            Automaton leftAutomaton = LDLfToAutomaton(left);
-            Automaton rightAutomaton = LDLfToAutomaton(right);
+            Automaton leftAutomaton = LDLfToAutomaton(declare, left, ps);
+            Automaton rightAutomaton = LDLfToAutomaton(declare, right, ps);
+            automaton = concatWrapper(leftAutomaton, rightAutomaton);
         } else if (formula instanceof TemporalFormula) {
             LDLfTempOpTempFormula tFormula = (LDLfTempOpTempFormula) formula;
             RegExp reg = tFormula.getRegExp();
             LDLfFormula goal = tFormula.getGoalFormula();
-            Automaton regAutomaton = regexpToAutomaton(reg);
-            Automaton goalAutomaton = LDLfToAutomaton(goal);
+            Automaton regAutomaton = regexpToAutomaton(declare, reg, ps);
+            Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps);
+            automaton = concatWrapper(regAutomaton, goalAutomaton);
         } else {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
@@ -157,15 +434,35 @@ public class ParseLTLfFormulaTest {
         return automaton;
     }
 
-    private Automaton regexpToAutomaton(RegExp regExp) {
-        Automaton automaton = null;
+    private Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps) {
+        Automaton automaton;
 
         /* Base case when expression is atomic proposition */
-        if (regExp instanceof AtomicFormula) {
-            System.out.println("atomic regexp: " + regExp);
+        if (regExp instanceof AtomicFormula) { //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
+            System.out.println("atomic regexp: " + regExp + " type: " + regExp.getFormulaType());
+            LDLfFormula ldlfFormula;
+
+            FormulaType type = regExp.getFormulaType();
+            switch (type) {
+                case RE_LOCAL_TRUE -> ldlfFormula = new LDLfLocalTrueFormula();
+                case RE_LOCAL_FALSE -> ldlfFormula = new LDLfLocalFalseFormula();
+                default -> {
+                    PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
+                    System.out.println("prop: " + propForm.toString());
+                    ldlfFormula = parseLocalFormula(propForm.toString());
+                    System.out.println("ldl: " + ldlfFormula);
+                }
+
+            }
+            automaton = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+            automaton = new Reducer<>().transform(automaton);
             return automaton;
         } else if (regExp instanceof LocalFormula) {
-            System.out.println("localVar regexp: " + regExp);
+            System.out.println("localVar regexp: " + regExp + " type: " + regExp.getFormulaType());
+            PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
+            LDLfFormula ldlfFormula = parseLocalFormula(propForm.toString());
+            automaton = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+            automaton = new Reducer<>().transform(automaton);
             return automaton;
         }
 
@@ -174,24 +471,26 @@ public class ParseLTLfFormulaTest {
             UnaryFormula uFormula = (UnaryFormula) regExp;
             Formula nested = uFormula.getNestedFormula();
             if (nested instanceof RegExp) {
-                automaton = regexpToAutomaton((RegExp) nested);
+                automaton = regexpToAutomaton(declare, (RegExp) nested, ps);
             } else if (nested instanceof LDLfFormula) {
-                automaton = LDLfToAutomaton((LDLfFormula) nested); //Special case (RegExpTest)
+                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps); //Special case (RegExpTest)
             } else {
-                throw new IllegalArgumentException("Nested formula of illegal type " + nested.getClass());
+                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
             }
         } else if (regExp instanceof BinaryFormula) {
             BinaryFormula bFormula = (BinaryFormula) regExp;
             RegExp left = (RegExp) bFormula.getLeftFormula(); //Can be LDLfFormula?
             RegExp right = (RegExp) bFormula.getRightFormula(); //Can be LDLfFormula?
-            Automaton leftAutomaton = regexpToAutomaton(left);
-            Automaton rightAutomaton = regexpToAutomaton(right);
+            Automaton leftAutomaton = regexpToAutomaton(declare, left, ps);
+            Automaton rightAutomaton = regexpToAutomaton(declare, right, ps);
+            automaton = concatWrapper(leftAutomaton, rightAutomaton);
         } else if (regExp instanceof TemporalFormula) {
             LDLfTempOpTempFormula tFormula = (LDLfTempOpTempFormula) regExp;
             RegExp reg = tFormula.getRegExp();
             LDLfFormula goal = tFormula.getGoalFormula();
-            Automaton regAutomaton = regexpToAutomaton(reg);
-            Automaton goalAutomaton = LDLfToAutomaton(goal);
+            Automaton regAutomaton = regexpToAutomaton(declare, reg, ps);
+            Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps);
+            automaton = concatWrapper(regAutomaton, goalAutomaton);
         } else {
             throw new IllegalArgumentException("Illegal regexp " + regExp);
         }
@@ -199,8 +498,48 @@ public class ParseLTLfFormulaTest {
         return automaton;
     }
 
+    private Automaton concatWrapper(Automaton a1, Automaton a2) {
+        Automaton automaton = new Concatenation<>().transform(a1, a2);
+        automaton = new Reducer<>().transform(automaton);
+//            automaton = new SinkComplete().transform(automaton); //Needed?
+        return automaton;
+    }
+
+    private LDLfFormula translateRegExpToLDLf(RegExp regExp) {
+        LDLfFormula ldlfFormula;
+        FormulaType type = regExp.getFormulaType();
+
+        switch (type) {
+            case RE_LOCAL_VAR -> {
+                PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
+                ldlfFormula = parseLocalFormula(propForm.toString());
+//                ldlfFormula = new LDLfLocalVar(((RegExpLocalVar) regExp).getProp());
+            }
+            case RE_LOCAL_TRUE -> ldlfFormula = new LDLfLocalTrueFormula();
+            case RE_LOCAL_FALSE -> ldlfFormula = new LDLfLocalFalseFormula();
+            case RE_LOCAL_NOT -> {
+//                RegExpLocalNot regExpLocalVar = ((RegExpLocalNot) regExp).regExpLocal2Propositional();
+                PropositionalFormula propFormula = ((RegExpLocal) regExp).regExpLocal2Propositional();
+//                Proposition prop = regExpLocalVar.getProp();
+//                ldlfFormula = new LDLfLocalVar(prop);
+//                ldlfFormula = LDLfLocalFormula.localFormulaFactory(LocalFormulaType.PROP_NOT, (LDLfLocalFormula) ldlfFormula, null, prop);
+                System.out.println("prop: " + propFormula.toString());
+                ldlfFormula = parseLocalFormula(propFormula.toString());
+            }
+            case RE_LOCAL_AND -> {
+                PropositionalFormula propositionalFormula = ((RegExpLocal) regExp).regExpLocal2Propositional();
+                Set<Proposition> propositions = propositionalFormula.getAtoms();
+                Set<PropositionalFormula> propositionalFormulas = propositionalFormula.getLiterals();
+                ldlfFormula = null;
+            }
+
+            default -> throw new IllegalArgumentException("Not implemented yet: " + type);
+        }
+        return ldlfFormula;
+    }
+
     @Test
-    public void LDLfToNnf() {
+    public void LDLfToNnfTest() {
         //3. convert to normal negated form(?)
         ltl = parseLTLfFormula("a");
         ldl = ltl.toLDLf();
@@ -220,7 +559,7 @@ public class ParseLTLfFormulaTest {
     }
 
     @Test
-    public void LTLfToLDLf() {
+    public void LTLfToLDLfTest() {
         //2. convert LTLfFormula to LDLfFormula
         ltlA = parseLTLfFormula("a");
         ldl = ltlA.toLDLf();
@@ -361,5 +700,16 @@ public class ParseLTLfFormulaTest {
         LTLfVisitor visitor = new LTLfVisitor();
 
         return visitor.visit(tree);
+    }
+
+    private LDLfLocalFormula parseLocalFormula(String input) {
+        LDLfLocalFormula output;
+
+        PropFormulaParserLexer lexer = new PropFormulaParserLexer(new ANTLRInputStream(input));
+        PropFormulaParserParser parser = new PropFormulaParserParser(new CommonTokenStream(lexer));
+        ParseTree tree = parser.propositionalFormula();
+        LocalVisitor<LDLfLocalFormula> implementation = new LocalVisitor(LDLfLocalFormula.class);
+        output = implementation.visit(tree);
+        return output;
     }
 }
