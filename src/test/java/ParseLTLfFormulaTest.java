@@ -22,7 +22,6 @@ import org.junit.Test;
 import rationals.*;
 import rationals.transformations.Concatenation;
 import rationals.transformations.Reducer;
-import scala.sys.Prop;
 import utils.AutomatonUtils;
 import visitors.LTLfVisitors.LTLfVisitor;
 import visitors.PropVisitor.LocalVisitor;
@@ -83,13 +82,13 @@ public class ParseLTLfFormulaTest {
 
         formulaToCompareAutomatons(stringToLDLf("true"), declare, ps);
 
-//        formulaToCompareAutomatons(stringToLDLf("False"), declare, ps);
-//
-//        formulaToCompareAutomatons(stringToLDLf("a"), declare, ps);
-//
-//        formulaToCompareAutomatons(stringToLDLf("!a"), declare, ps);
-//
-//        formulaToCompareAutomatons(stringToLDLf("!a && b"), declare, ps);
+        formulaToCompareAutomatons(stringToLDLf("False"), declare, ps);
+
+        formulaToCompareAutomatons(stringToLDLf("a"), declare, ps);
+
+        formulaToCompareAutomatons(stringToLDLf("!a"), declare, ps);
+
+        formulaToCompareAutomatons(stringToLDLf("!a && b"), declare, ps);
 //
 //        stringToAutomaton("a || b", declare, ps);
 //        System.out.println("------------------------\n");
@@ -438,29 +437,9 @@ public class ParseLTLfFormulaTest {
         Automaton automaton;
 
         /* Base case when expression is atomic proposition */
-        if (regExp instanceof AtomicFormula) { //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
+        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) { //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
             System.out.println("atomic regexp: " + regExp + " type: " + regExp.getFormulaType());
-            LDLfFormula ldlfFormula;
-
-            FormulaType type = regExp.getFormulaType();
-            switch (type) {
-                case RE_LOCAL_TRUE -> ldlfFormula = new LDLfLocalTrueFormula();
-                case RE_LOCAL_FALSE -> ldlfFormula = new LDLfLocalFalseFormula();
-                default -> {
-                    PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
-                    System.out.println("prop: " + propForm.toString());
-                    ldlfFormula = parseLocalFormula(propForm.toString());
-                    System.out.println("ldl: " + ldlfFormula);
-                }
-
-            }
-            automaton = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
-            automaton = new Reducer<>().transform(automaton);
-            return automaton;
-        } else if (regExp instanceof LocalFormula) {
-            System.out.println("localVar regexp: " + regExp + " type: " + regExp.getFormulaType());
-            PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
-            LDLfFormula ldlfFormula = parseLocalFormula(propForm.toString());
+            LDLfFormula ldlfFormula = regExpAtomicLocal2LDLf(regExp);
             automaton = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
             automaton = new Reducer<>().transform(automaton);
             return automaton;
@@ -496,6 +475,23 @@ public class ParseLTLfFormulaTest {
         }
 
         return automaton;
+    }
+
+    private LDLfFormula regExpAtomicLocal2LDLf(RegExp regExp) {
+        LDLfFormula ldlfFormula;
+
+        FormulaType type = regExp.getFormulaType();
+        switch (type) {
+            case RE_LOCAL_TRUE -> ldlfFormula = new LDLfLocalTrueFormula();
+            case RE_LOCAL_FALSE -> ldlfFormula = new LDLfLocalFalseFormula();
+            default -> {
+                PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
+                System.out.println("prop: " + propForm.toString());
+                ldlfFormula = parseLocalFormula(propForm.toString());
+                System.out.println("ldl: " + ldlfFormula);
+            }
+        }
+        return ldlfFormula;
     }
 
     private Automaton concatWrapper(Automaton a1, Automaton a2) {
