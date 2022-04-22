@@ -8,17 +8,16 @@
 
 package utils;
 
-import antlr4_generated.LDLfFormulaParserLexer;
-import antlr4_generated.LDLfFormulaParserParser;
-import antlr4_generated.LTLfFormulaParserLexer;
-import antlr4_generated.LTLfFormulaParserParser;
+import antlr4_generated.*;
 import formula.ldlf.LDLfFormula;
+import formula.ldlf.LDLfLocalFormula;
 import formula.ltlf.LTLfFormula;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import visitors.LDLfVisitors.LDLfVisitor;
 import visitors.LTLfVisitors.LTLfVisitor;
+import visitors.PropVisitor.LocalVisitor;
 
 /**
  * Created by Riccardo De Masellis on 28/06/16.
@@ -51,4 +50,15 @@ public class ParserUtils {
         return output;
     }
 
+    public static LDLfLocalFormula parseLocalFormula(String input) {
+        LDLfLocalFormula output;
+
+        PropFormulaParserLexer lexer = new PropFormulaParserLexer(new ANTLRInputStream(input));
+        PropFormulaParserParser parser = new PropFormulaParserParser(new CommonTokenStream(lexer));
+        ParseTree tree = parser.propositionalFormula();
+        LocalVisitor<LDLfLocalFormula> implementation = new LocalVisitor(LDLfLocalFormula.class);
+        output = implementation.visit(tree);
+
+        return output;
+    }
 }
