@@ -3,9 +3,9 @@ package utils;
 import compositionalUtils.MyConcatenation;
 import formula.*;
 import formula.ldlf.*;
+import formula.ltlf.LTLfFormula;
 import formula.regExp.RegExp;
 import formula.regExp.RegExpLocal;
-import formula.regExp.RegExpLocalTrue;
 import formula.regExp.RegExpStar;
 import net.sf.tweety.logics.pl.semantics.PossibleWorld;
 import net.sf.tweety.logics.pl.syntax.Proposition;
@@ -21,7 +21,7 @@ import rationals.transformations.*;
 import java.util.HashSet;
 import java.util.Set;
 
-import static utils.ParserUtils.parseLocalFormula;
+import static utils.ParserUtils.parseLTLfFormula;
 
 public class CompAutomatonUtils {
 
@@ -63,13 +63,19 @@ public class CompAutomatonUtils {
         return automaton;
     }
 
+    public static LDLfFormula stringToNnfLDLf(String input) {
+        LTLfFormula ltl = parseLTLfFormula(input);
+        LDLfFormula ldl = ltl.toLDLf();
+        ldl = (LDLfFormula) ldl.nnf();
+        return ldl;
+    }
+
     private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps) {
         Automaton automaton;
 
         /* Base case when expression is atomic proposition or local formula */
         if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) { //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
-            LDLfFormula ldlfFormula = regExpAtomicLocal2LDLf(regExp);
-            automaton = LDLfToAutomaton(declare, ldlfFormula, ps);
+            automaton = getElementaryAutomaton(regExp, ps);
             return automaton;
         }
 
@@ -86,7 +92,7 @@ public class CompAutomatonUtils {
             }
 
             if (regExp instanceof RegExpStar) {
-                Automaton end = LDLfToAutomaton(declare, getEndFormula(), ps);
+                Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps);
                 automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, end);
             } else {
                 automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, null);
@@ -116,79 +122,27 @@ public class CompAutomatonUtils {
         Automaton compAutomaton;
 
         switch (type) {
-            case LDLf_LOCAL_TRUE:
-            case LDLf_LOCAL_FALSE:
-            case LDLf_LOCAL_VAR:
-            case LDLf_tt:
-            case LDLf_ff:
-                compAutomaton = left;
-                break;
-            case LDLf_LOCAL_NOT:
-                /*
-                To avoid accepting epsilon after complement
-                 */
-                compAutomaton = getComplementNotEpsilonAutomaton(left);
-//                compAutomaton = new Complement<>().transform(left);
-                break;
-            case LDLf_LOCAL_AND:
             case LDLf_TEMP_AND:
                 compAutomaton = new Mix<>().transform(left, right);
                 break;
-            case LDLf_LOCAL_OR:
+
             case LDLf_TEMP_OR:
                 compAutomaton = new Union<>().transform(left, right);
                 break;
+
             case LDLf_BOX:
-                if (nested instanceof LocalFormula) {
-                    /*
-                    For handling of [prop]phi
-                     */
-                    Automaton compLeft = new Complement<>().transform(left); //accept complement of left
-
-                    if (new isEmpty<>().test(left)) {
-                        compAutomaton = left.clone();
-                    } else {
-                        compAutomaton = new Concatenation<>().transform(left, right); //accept left concat right
-                    }
-
-                    //reduce before union?
-                    compAutomaton = new Union<>().transform(compLeft, compAutomaton);
-                } else if (nested instanceof TemporalFormula) {
-                    /*
-                    For handling of [rho*]phi
-                     */
-
-                    /* If only one state, use epsilon complement */
-                    Automaton compRight;
-                    if (right.states().size() == 1) {
-                        compRight = new Complement<>().transform(right);
-                    } else {
-                        compRight = getComplementNotEpsilonAutomaton(right);
-                    }
-
-                    if (new isEmpty<>().test(left)) {
-                        compAutomaton = left.clone();
-                    } else {
-                        compAutomaton = new MyConcatenation<>().transform(left, compRight);
-                        /*
-                        To prevent reduction to empty automaton
-                         */
-                        if (new isEmpty<>().test(compAutomaton)) {
-                            compAutomaton = compRight.clone();
-                        }
-                    }
-                    compAutomaton = new Reducer<>().transform(compAutomaton);
-
-                    /* If only one state, use epsilon complement */
-                    if (compAutomaton.states().size() == 1) {
-                        compAutomaton = new Complement<>().transform(compAutomaton);
-                    } else {
-                        compAutomaton = getComplementNotEpsilonAutomaton(compAutomaton);
-                    }
+                if (new isEmpty<>().test(left)) {
+                    compAutomaton = left.clone();
                 } else {
-                    throw new IllegalArgumentException("Unknown nested formula type: " + nested.getClass());
+                    Automaton compRight = new Complement<>().transform(right);
+//                    compRight = new Reducer<>().transform(compRight);
+                    compAutomaton = new Concatenation<>().transform(left, compRight);
+                    compAutomaton = new Reducer<>().transform(compAutomaton);
+                    compAutomaton = new SinkComplete().transform(compAutomaton);
                 }
+                compAutomaton = new Complement<>().transform(compAutomaton);
                 break;
+
             case RE_CONCAT: // More needed?
             case LDLf_DIAMOND:
                 if (new isEmpty<>().test(left)) {
@@ -203,9 +157,7 @@ public class CompAutomatonUtils {
                     }
                 }
                 break;
-//            case RE_TEST:
-//                compAutomaton = left;
-//                break;
+
             case RE_STAR:
                 if (new isEmpty<>().test(left)) {
                     compAutomaton = left.clone();
@@ -213,17 +165,12 @@ public class CompAutomatonUtils {
                     compAutomaton = new Concatenation<>().transform(left, right);
                 }
 
-                compAutomaton = new Reducer<>().transform(compAutomaton);
+//                compAutomaton = new Reducer<>().transform(compAutomaton);
                 compAutomaton = new Star<>().transform(compAutomaton);
                 break;
+
             default:
                 throw new IllegalArgumentException("Not implemented yet: " + type);
-
-//            LDLf_TEMP_NOT,
-//            LDLf_TEMP_IMPL,
-//            LDLf_TEMP_DOUBLEIMPL,
-//            LDLf_LOCAL_IMPL,
-//            LDLf_LOCAL_DOUBLEIMPL,
         }
 
         compAutomaton = new Reducer<>().transform(compAutomaton);
@@ -231,7 +178,7 @@ public class CompAutomatonUtils {
         return compAutomaton;
     }
 
-    private static Automaton getElementaryAutomaton(LDLfFormula formula, PropositionalSignature ps) {
+    private static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
         Automaton automaton;
         State initialState;
         State endState;
@@ -254,15 +201,15 @@ public class CompAutomatonUtils {
             initialState = automaton.addState(true, false);
             addLoopingTransitions(labels, initialState, initialState, automaton);
         } else {
-            if (!(formula instanceof LDLfLocalFormula)) {
-                throw new IllegalArgumentException("Formula is not a LDLfLocalFormula: " + formula.getFormulaType());
+            if (!(formula instanceof LocalFormula)) {
+                throw new IllegalArgumentException("Formula is not a LocalFormula: " + formula.getFormulaType());
             }
 
             initialState = automaton.addState(true, false);
             endState = automaton.addState(false, true);
             falseState = automaton.addState(false, false);
 
-            PropositionalFormula propFormula = ((LDLfLocalFormula) formula).LDLfLocal2Prop();
+            PropositionalFormula propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
 
             for (PossibleWorld label : labels) {
                 Transition<PossibleWorld> transition;
@@ -298,62 +245,6 @@ public class CompAutomatonUtils {
                 e.printStackTrace();
             }
         }
-    }
-
-    private static LDLfFormula regExpAtomicLocal2LDLf(RegExp regExp) {
-        LDLfFormula ldlfFormula;
-
-        if (!(regExp instanceof RegExpLocal)) {
-            throw new IllegalArgumentException("Parse to LDL only works on RegExpLocal: " + regExp.getFormulaType());
-        }
-
-        FormulaType type = regExp.getFormulaType();
-        switch (type) {
-            case RE_LOCAL_TRUE -> ldlfFormula = new LDLfLocalTrueFormula();
-            case RE_LOCAL_FALSE -> ldlfFormula = new LDLfLocalFalseFormula();
-            default -> {
-                PropositionalFormula propForm = ((RegExpLocal) regExp).regExpLocal2Propositional();
-                ldlfFormula = parseLocalFormula(propForm.toString());
-            }
-        }
-
-        return ldlfFormula;
-    }
-
-    // [true]ff
-    private static LDLfFormula getEndFormula() {
-        RegExp regExp = new RegExpLocalTrue();
-        LDLfFormula ldl = new LDLfffFormula();
-        return new LDLfBoxFormula(regExp, ldl);
-    }
-
-    private static Automaton getComplementNotEpsilonAutomaton(Automaton automaton) {
-        Automaton temp = automaton.clone();
-
-        Set<State> states = temp.states();
-        for (State s : states) {
-            if (s.isInitial()) {
-                /* To avoid accepting epsilon */
-                if (s.isTerminal()) {
-                    s.setTerminal(false);
-                }
-            } else {
-                s.setTerminal(!s.isTerminal());
-            }
-        }
-
-        return temp.clone();
-    }
-
-    private static Automaton getComplementAutomaton(Automaton automaton) {
-        Automaton temp = automaton.clone();
-
-        Set<State> states = temp.states();
-        for (State s : states) {
-            s.setTerminal(!s.isTerminal());
-        }
-
-        return temp.clone();
     }
 
 }
