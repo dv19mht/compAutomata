@@ -7,10 +7,12 @@ import formula.ltlf.LTLfFormula;
 import formula.regExp.RegExp;
 import formula.regExp.RegExpLocal;
 import formula.regExp.RegExpStar;
+import formula.regExp.RegExpTest;
 import net.sf.tweety.logics.pl.semantics.PossibleWorld;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalFormula;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
+import net.sf.tweety.logics.pl.syntax.Tautology;
 import rationals.Automaton;
 import rationals.NoSuchStateException;
 import rationals.State;
@@ -18,8 +20,7 @@ import rationals.Transition;
 import rationals.properties.isEmpty;
 import rationals.transformations.*;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import static utils.ParserUtils.parseLTLfFormula;
 
@@ -50,12 +51,28 @@ public class CompAutomatonUtils {
             Automaton rightAutomaton = LDLfToAutomaton(declare, right, ps);
             automaton = compositionAutomatonFactory(formula.getFormulaType(), null, leftAutomaton, rightAutomaton);
         } else if (formula instanceof TemporalFormula) {
+//            System.err.println("Formula: " + formula);
             LDLfTempOpTempFormula tFormula = (LDLfTempOpTempFormula) formula;
             RegExp reg = tFormula.getRegExp();
             LDLfFormula goal = tFormula.getGoalFormula();
-            Automaton regAutomaton = regexpToAutomaton(declare, reg, ps);
-            Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps);
-            automaton = compositionAutomatonFactory(formula.getFormulaType(), reg, regAutomaton, goalAutomaton);
+
+            if (regexpHasTest(reg)) {
+                /*
+                Use top-down algorithm
+                 */
+//                System.err.println("Using LDLF2DFA");
+                automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps);
+                automaton = new Reducer<>().transform(automaton);
+                automaton = CompAutomatonUtils.convertLDLf2DFAtoCompositional(automaton);
+            } else {
+                /*
+                Proceed with compositional algorithm
+                 */
+//                System.err.println("Using COMPOSITIONAL");
+                Automaton regAutomaton = regexpToAutomaton(declare, reg, ps);
+                Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps);
+                automaton = compositionAutomatonFactory(formula.getFormulaType(), reg, regAutomaton, goalAutomaton);
+            }
         } else {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
@@ -118,7 +135,41 @@ public class CompAutomatonUtils {
         return automaton;
     }
 
-    private static Automaton compositionAutomatonFactory(FormulaType type, RegExp nested, Automaton left, Automaton right) {
+    public static boolean regexpHasTest(RegExp regExp) {
+        boolean hasTest = false;
+
+        /* Base case when expression is a test formula or atomic/local */
+        if (regExp instanceof RegExpTest) {
+            return true;
+        } else if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
+            return false;
+        }
+
+        /* Else parse subformula */
+        if (regExp instanceof UnaryFormula) {
+            UnaryFormula uFormula = (UnaryFormula) regExp;
+            Formula nested = uFormula.getNestedFormula();
+            if (nested instanceof RegExp) {
+                hasTest = regexpHasTest((RegExp) nested);
+            } else {
+                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
+            }
+        } else if (regExp instanceof BinaryFormula) {
+            BinaryFormula bFormula = (BinaryFormula) regExp;
+            RegExp left = (RegExp) bFormula.getLeftFormula(); //Can be LDLfFormula?
+            RegExp right = (RegExp) bFormula.getRightFormula(); //Can be LDLfFormula?
+            hasTest = regexpHasTest(left);
+            if (!hasTest) {
+                hasTest = regexpHasTest(right);
+            }
+        } else {
+            throw new IllegalArgumentException("Illegal regexp " + regExp);
+        }
+
+        return hasTest;
+    }
+
+    public static Automaton compositionAutomatonFactory(FormulaType type, RegExp nested, Automaton left, Automaton right) {
         Automaton compAutomaton;
 
         switch (type) {
@@ -165,7 +216,6 @@ public class CompAutomatonUtils {
                     compAutomaton = new Concatenation<>().transform(left, right);
                 }
 
-//                compAutomaton = new Reducer<>().transform(compAutomaton);
                 compAutomaton = new Star<>().transform(compAutomaton);
                 break;
 
@@ -200,7 +250,7 @@ public class CompAutomatonUtils {
         } else if (formula instanceof LDLfffFormula) {
             initialState = automaton.addState(true, false);
             addLoopingTransitions(labels, initialState, initialState, automaton);
-        } else {
+        }  else {
             if (!(formula instanceof LocalFormula)) {
                 throw new IllegalArgumentException("Formula is not a LocalFormula: " + formula.getFormulaType());
             }
@@ -209,7 +259,12 @@ public class CompAutomatonUtils {
             endState = automaton.addState(false, true);
             falseState = automaton.addState(false, false);
 
-            PropositionalFormula propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
+            PropositionalFormula propFormula;
+            if (formula instanceof LDLfLocalTrueFormula) {
+                propFormula = new Tautology(); //HACK TO BE REMOVED
+            } else {
+                propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
+            }
 
             for (PossibleWorld label : labels) {
                 Transition<PossibleWorld> transition;
@@ -225,8 +280,6 @@ public class CompAutomatonUtils {
                     e.printStackTrace();
                 }
             }
-
-//            addLoopingTransitions(labels, falseState, falseState, automaton);
         }
 
         automaton = new Reducer<>().transform(automaton);
@@ -245,6 +298,46 @@ public class CompAutomatonUtils {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static Automaton convertLDLf2DFAtoCompositional(Automaton ldlf2dfa) {
+        Automaton compAutomaton = new Automaton();
+        HashMap<State, State> map = new HashMap<>();
+
+        /*
+        Add all states
+         */
+        Iterator<State> i1 = ldlf2dfa.states().iterator();
+        while (i1.hasNext()) {
+            State e = i1.next();
+            State n = compAutomaton.addState(e.isInitial(), e.isTerminal());
+            map.put(e, n);
+        }
+
+        /*
+        Add all transitions
+         */
+        Iterator<Transition<PossibleWorld>> i2 = ldlf2dfa.delta().iterator();
+        while (i2.hasNext()) {
+            Transition<PossibleWorld> t = i2.next();
+
+            /*
+            Convert labels from PossibleWorldWrap
+             */
+            Iterator<Proposition> i3 = t.label().iterator();
+            PossibleWorld pw = new PossibleWorld();
+            while (i3.hasNext()) {
+                pw.add(i3.next());
+            }
+
+            try {
+                compAutomaton.addTransition(new Transition<>(map.get(t.start()), pw, map.get(t.end())));
+            } catch (NoSuchStateException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return compAutomaton;
     }
 
 }
