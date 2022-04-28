@@ -2,6 +2,7 @@ import formula.FormulaType;
 import formula.ldlf.*;
 import formula.ltlf.LTLfFormula;
 import formula.regExp.RegExp;
+import formula.regExp.RegExpLocalVar;
 import formula.regExp.RegExpTest;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
@@ -137,8 +138,21 @@ public class CompAutomataTest {
 //        compareAutomataOnLDL("[(a)*](ff)", declare, ps);
 
         //(<a>(tt)?)
-//        LDLfFormula test = ParserUtils.parseLDLfFormula("<(<a>(tt))?>(tt)");
-//        Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, test, ps);
+        LDLfFormula att = ParserUtils.parseLDLfFormula("<a>(tt)");
+        LDLfFormula end = ParserUtils.parseLDLfFormula("(end)");
+        LDLfFormula notEnd = ParserUtils.parseLDLfFormula("<true>(tt)");
+        LDLfFormula aEnd = ParserUtils.parseLDLfFormula("<a>(end)");
+        LDLfFormula aTest = ParserUtils.parseLDLfFormula("<(<a>(tt))?>(end)");
+        LDLfFormula bAndNotEnd = ParserUtils.parseLDLfFormula("(<b>(tt)) && (<true>(tt))");
+        LDLfFormula aUb = ParserUtils.parseLDLfFormula("<(<a>(tt))? ; (true)>(<b>(tt) && <true>(tt))");
+        LDLfFormula a = ParserUtils.parseLDLfFormula("a");
+        Automaton compA = CompAutomatonUtils.getElementaryAutomaton(new RegExpLocalVar(new Proposition("a")), ps);
+        Automaton compBandNotEnd = CompAutomatonUtils.LDLfToAutomaton(declare, bAndNotEnd, ps);
+        compA = CompAutomatonUtils.compositionAutomatonFactory(FormulaType.LDLf_DIAMOND, null, compA, compBandNotEnd);
+        Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, aEnd, ps);
+        ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
+        Automaton compAtt = CompAutomatonUtils.LDLfToAutomaton(declare, aEnd, ps);
+        printComparison(ldlf2dfa, compAtt, aEnd);
 //        System.out.println(ldlf2dfa);
     }
 
@@ -173,11 +187,11 @@ public class CompAutomataTest {
 //
 //        compareAutomataOnLTL("G(a)", declare, ps);
 
-//        compareAutomataOnLTL("a U b", declare, ps); // RE_TEST
+        compareAutomataOnLTL("a U b", declare, ps); // RE_TEST
 //
 //        compareAutomataOnLTL("a W b", declare, ps); // RE_TEST
 //
-        compareAutomataOnLTL("a R b", declare, ps); // RE_TEST
+//        compareAutomataOnLTL("a R b", declare, ps); // RE_TEST
 
 //        compareAutomataOnLTL("a <-> b", declare, ps);
 //
