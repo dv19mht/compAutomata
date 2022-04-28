@@ -12,7 +12,6 @@ import net.sf.tweety.logics.pl.semantics.PossibleWorld;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalFormula;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
-import net.sf.tweety.logics.pl.syntax.Tautology;
 import rationals.Automaton;
 import rationals.NoSuchStateException;
 import rationals.State;
@@ -91,7 +90,8 @@ public class CompAutomatonUtils {
         Automaton automaton;
 
         /* Base case when expression is atomic proposition or local formula */
-        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) { //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
+        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
+            //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
             automaton = getElementaryAutomaton(regExp, ps);
             return automaton;
         }
@@ -102,7 +102,8 @@ public class CompAutomatonUtils {
             Formula nested = uFormula.getNestedFormula();
             if (nested instanceof RegExp) {
                 automaton = regexpToAutomaton(declare, (RegExp) nested, ps);
-            } else if (nested instanceof LDLfFormula) { //Special case when RegExpTest
+            } else if (nested instanceof LDLfFormula) {
+                //Special case when RegExpTest
                 automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps);
             } else {
                 throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
@@ -136,7 +137,7 @@ public class CompAutomatonUtils {
     }
 
     public static boolean regexpHasTest(RegExp regExp) {
-        boolean hasTest = false;
+        boolean hasTest;
 
         /* Base case when expression is a test formula or atomic/local */
         if (regExp instanceof RegExpTest) {
@@ -186,7 +187,6 @@ public class CompAutomatonUtils {
                     compAutomaton = left.clone();
                 } else {
                     Automaton compRight = new Complement<>().transform(right);
-//                    compRight = new Reducer<>().transform(compRight);
                     compAutomaton = new Concatenation<>().transform(left, compRight);
                     compAutomaton = new Reducer<>().transform(compAutomaton);
                     compAutomaton = new SinkComplete().transform(compAutomaton);
@@ -228,7 +228,7 @@ public class CompAutomatonUtils {
         return compAutomaton;
     }
 
-    private static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
+    public static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
         Automaton automaton;
         State initialState;
         State endState;
@@ -259,12 +259,7 @@ public class CompAutomatonUtils {
             endState = automaton.addState(false, true);
             falseState = automaton.addState(false, false);
 
-            PropositionalFormula propFormula;
-            if (formula instanceof LDLfLocalTrueFormula) {
-                propFormula = new Tautology(); //HACK TO BE REMOVED
-            } else {
-                propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
-            }
+            PropositionalFormula propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
 
             for (PossibleWorld label : labels) {
                 Transition<PossibleWorld> transition;
