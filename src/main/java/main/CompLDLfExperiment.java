@@ -10,33 +10,45 @@ import rationals.transformations.Reducer;
 import utils.AutomatonUtils;
 import utils.CompAutomatonUtils;
 
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
 public class CompLDLfExperiment {
 
     public static void main(String[] args) {
-        try {
+        try (PrintWriter resultPrinter = new PrintWriter("result.txt")){
             int input = Integer.parseInt(args[0]);
-            for(int num=14; num<input; num++) {
-//                ldlf2dfaGeneration(num);
-//                System.out.println();
+            for(int num=1; num<input; num++) {
+                String temp;
+
+                temp = ldlf2dfaGeneration(num);
+                resultPrinter.println(temp);
+                System.out.println();
+
 //                ldlf2dfaGenerationAlt(num);
 //                System.out.println();
-                compositionGeneration(num);
+
+                temp = compositionalGeneration(num);
+                resultPrinter.println(temp);
                 System.out.println();
-//                compositionGenerationQueue(num);
-//                System.out.println();
+
+                temp = compositionalQueueGeneration(num);
+                resultPrinter.println(temp);
+                System.out.println();
+
                 System.out.println("--------------------");
                 System.out.println();
             }
         }
-        catch (NumberFormatException exception) {
+        catch (NumberFormatException | FileNotFoundException exception) {
             System.out.println("Invalid input format. Please insert an integer representing the maximum number of constraints to be generated. Thirty is the bound in the paper.");
         }
+
     }
 
-    public static Automaton ldlf2dfaGeneration(int num) {
+    public static String ldlf2dfaGeneration(int num) {
         long startTime = System.currentTimeMillis();
 
         boolean declare = true;
@@ -46,14 +58,11 @@ public class CompLDLfExperiment {
 
         PropositionalSignature signature = generateSignatureInc(num);
 
-        //Original implementation
         LTLfAutomatonResultWrapper mainAutomatonWrapper = Main.ltlfString2Aut("true", signature, declare, minimize, trim, printing);
         Automaton mainAutomaton = mainAutomatonWrapper.getAutomaton();
 
         for (int i=0; i<num; i++) {
             String currentConstraint = getConstraint(i);
-
-            //Original implementation
             LTLfAutomatonResultWrapper currentAutomatonWrapper = Main.ltlfString2Aut(currentConstraint, signature, declare, minimize, trim, printing);
             Automaton currentAutomaton = currentAutomatonWrapper.getAutomaton();
             mainAutomaton = new Mix<>().transform(mainAutomaton, currentAutomaton);
@@ -74,9 +83,10 @@ public class CompLDLfExperiment {
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
 
-        return mainAutomaton;
+        return "ldlf2dfa;" + num + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
     }
 
+    //Conjunction of formulae before automaton creation
     public static Automaton ldlf2dfaGenerationAlt(int num) {
         long startTime = System.currentTimeMillis();
 
@@ -84,18 +94,14 @@ public class CompLDLfExperiment {
 
         PropositionalSignature signature = generateSignatureInc(num);
 
-        //Conjunction before automaton creation
         LDLfFormula conjunctionFormula = CompAutomatonUtils.stringToNnfLDLf("true");
 
         for (int i=0; i<num; i++) {
             String currentConstraint = getConstraint(i);
-
-            //Conjugation before automaton creation
             LDLfFormula constraintFormula = CompAutomatonUtils.stringToNnfLDLf(currentConstraint);
             conjunctionFormula = new LDLfTempAndFormula(conjunctionFormula, constraintFormula);
         }
 
-        //Conjunction before automaton creation
         Automaton mainAutomaton = AutomatonUtils.ldlf2Automaton(declare, conjunctionFormula, signature);
 
         long elapsedTime = System.currentTimeMillis() - startTime;
@@ -115,7 +121,7 @@ public class CompLDLfExperiment {
         return mainAutomaton;
     }
 
-    public static Automaton compositionGeneration(int num) {
+    public static String compositionalGeneration(int num) {
 
         long startTime = System.currentTimeMillis();
 
@@ -155,10 +161,11 @@ public class CompLDLfExperiment {
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
 
-        return mainAutomaton;
+        return "composition;" + num + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
     }
 
-    public static Automaton compositionGenerationQueue(int num) {
+    /* Uses a priority queue to combine automata */
+    public static String compositionalQueueGeneration(int num) {
 
         long startTime = System.currentTimeMillis();
 
@@ -166,20 +173,17 @@ public class CompLDLfExperiment {
 
         PropositionalSignature signature = generateSignatureInc(num);
 
-        //Queue implementation
         PriorityQueue<Automaton> queue = new PriorityQueue<>(Comparator.comparingInt(a -> a.states().size()));
 
         for (int i=0; i<num; i++) {
             String currentConstraint = getConstraint(i);
             LDLfFormula constraintFormula = CompAutomatonUtils.stringToNnfLDLf(currentConstraint);
 
-            //Queue implementation
             Automaton currentAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, constraintFormula, signature);
             currentAutomaton = new Reducer<>().transform(currentAutomaton);
             queue.add(currentAutomaton);
         }
 
-        //Queue implementation
         while (queue.size() > 1) {
             Automaton a1 = queue.poll();
             Automaton a2 = queue.poll();
@@ -203,7 +207,7 @@ public class CompLDLfExperiment {
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
 
-        return mainAutomaton;
+        return "compQueue;" + num + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
     }
 
     public static PropositionalSignature generateSignatureInc(int num) {
