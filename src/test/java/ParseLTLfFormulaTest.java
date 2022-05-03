@@ -2,29 +2,18 @@ import antlr4_generated.LTLfFormulaParserLexer;
 import antlr4_generated.LTLfFormulaParserParser;
 import antlr4_generated.PropFormulaParserLexer;
 import antlr4_generated.PropFormulaParserParser;
-import automaton.EmptyTrace;
-import automaton.PossibleWorldWrap;
-import automaton.QuotedFormulaStateFactory;
-import automaton.QuotedFormulaStateFactory.QuotedFormulaState;
-import automaton.TransitionLabel;
-import compositionalUtils.MyBuilder;
 import compositionalUtils.MyConcatenation;
-import compositionalUtils.MyTransitionLabel;
-import evaluations.PropositionLast;
 import formula.*;
 import formula.ldlf.*;
 import formula.ltlf.*;
-import formula.quotedFormula.QuotedVar;
 import formula.regExp.*;
 import net.sf.tweety.logics.pl.semantics.PossibleWorld;
 import net.sf.tweety.logics.pl.syntax.*;
-import net.sf.tweety.math.norm.Norm;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.junit.Test;
 import rationals.*;
-import rationals.properties.isEmpty;
 import rationals.transformations.*;
 //import rationals.transformations.MyConcatenation;
 import utils.AutomatonUtils;
@@ -32,7 +21,6 @@ import visitors.LTLfVisitors.LTLfVisitor;
 import visitors.PropVisitor.LocalVisitor;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import static org.junit.Assert.*;
@@ -58,6 +46,7 @@ public class ParseLTLfFormulaTest {
     String strLast = "last";
     String strTrue = "true";
     String strFalse = "False";
+    String strEnd = "end";
 
     @Test
     public void customElementaryAutomatonTest() {
@@ -94,58 +83,62 @@ public class ParseLTLfFormulaTest {
         comp = getElementaryAutomaton(ldlA, ps);
         System.out.println("Formula: " + ldlA);
         System.out.println(comp.toString());
+
     }
 
     @Test
     public void compAutomatonTest() {
-        ldlA = stringToLDLf(strTrue);
+//        ldlA = stringToLDLf(strTrue);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strFalse);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strA);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strNotA);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strAandB); //Unsatisfiable regexp when declare is true (a && b can not be true at the same time).
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strAorB);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strAimplB);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strNextA);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strEventuallyA);
+//        createAutomataPrintResults(ldlA);
+//
+        ldlA = stringToLDLf(strGlobalA); //Not correct
         createAutomataPrintResults(ldlA);
 
-        ldlA = stringToLDLf(strFalse);
-        createAutomataPrintResults(ldlA);
+//        ldlA = stringToLDLf(strAuntilB); //RE_TEST not implemented yet
+//        createAutomataPrintResults(ldlA);
+//        Automaton automaton = AutomatonUtils.ldlf2Automaton(true, ldlA, generateSignature());
+//        automaton = new Reducer<>().transform(automaton);
+//        System.out.println("Formula: " + ldlA);
+//        System.out.println(automaton);
 
-        ldlA = stringToLDLf(strA);
-        createAutomataPrintResults(ldlA);
+//        ldlA = stringToLDLf(strAweakUntilB); //RE_TEST not implemented yet
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strAreleaseB); //RE_TEST not implemented yet
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strAdoubleImpB);
+//        createAutomataPrintResults(ldlA);
+//
+//        ldlA = stringToLDLf(strLast);
+//        createAutomataPrintResults(ldlA);
 
-        ldlA = stringToLDLf(strNotA);
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAandB); //Unsatisfiable regexp when declare is true (a && b can not be true at the same time).
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAorB);
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAimplB);
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strNextA);
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strEventuallyA); //RE_STAR not implemented yet
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strGlobalA); //RE_STAR not implemented yet
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAuntilB); //RE_TEST not implemented yet
-        createAutomataPrintResults(ldlA);
-        Automaton automaton = AutomatonUtils.ldlf2Automaton(true, ldlA, generateSignature());
-        automaton = new Reducer<>().transform(automaton);
-        System.out.println("Formula: " + ldlA);
-        System.out.println(automaton);
-
-        ldlA = stringToLDLf(strAweakUntilB); //RE_TEST not implemented yet
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAreleaseB); //RE_TEST not implemented yet
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strAdoubleImpB);
-        createAutomataPrintResults(ldlA);
-
-        ldlA = stringToLDLf(strLast);
-        createAutomataPrintResults(ldlA);
+//        ldlA = getEndFormula();
+//        createAutomataPrintResults(ldlA);
     }
 
     private void createAutomataPrintResults(LDLfFormula formula) {
@@ -160,7 +153,23 @@ public class ParseLTLfFormulaTest {
         comp = LDLfToAutomaton(declare, formula, ps);
         comp = new Reducer<>().transform(comp);
 
+//        comp = new CompleteNop<>(comp.alphabet()).transform(comp);
+        comp = new SinkComplete().transform(comp);
+
         printComparison(automaton, comp, formula);
+
+//        ModelCheck model = new ModelCheck<>();
+//        boolean equal = model.test(automaton, comp);
+//        System.out.println("Is equal: " + (equal? "true" : "FALSE"));
+//        if (!equal) {
+//            System.out.println(model.counterExamples().toString());
+//        }
+//        System.out.println("------------------------\n");
+
+//        Simulation simulation = new Simulation(automaton, comp);
+//        boolean equal = simulation.equivalence(automaton.states(), comp.states());
+//        System.out.println(equal);
+
 //        assertEquals(automaton.toString(), comp.toString());
     }
 
@@ -197,40 +206,41 @@ public class ParseLTLfFormulaTest {
         Proposition a = new Proposition("a");
         Proposition b = new Proposition("b");
 
-        // true
-        ldlA = new LDLfLocalTrueFormula();
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        comp = getElementaryAutomaton(ldlA, ps);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
-        automaton = new Reducer<>().transform(automaton);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
-        // false
-        ldlA = new LDLfLocalFalseFormula();
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        comp = getElementaryAutomaton(ldlA, ps);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
-        automaton = new Reducer<>().transform(automaton);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
-        // a
-        ldlA = new LDLfLocalVar(a);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        comp = getElementaryAutomaton(ldlA, ps);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
-        automaton = new Reducer<>().transform(automaton);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
+//        // true
+//        ldlA = new LDLfLocalTrueFormula();
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        comp = getElementaryAutomaton(ldlA, ps);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // false
+//        ldlA = new LDLfLocalFalseFormula();
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        comp = getElementaryAutomaton(ldlA, ps);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // a
+//        ldlA = new LDLfLocalVar(a);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        comp = getElementaryAutomaton(ldlA, ps);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), comp, null);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
         // !a
         ldlA = new LDLfLocalVar(a);
-        left = getElementaryAutomaton(ldlA, ps);
+//        left = getElementaryAutomaton(ldlA, ps);
         ldlA = new LDLfLocalNotFormula(ldlA);
+        left = getElementaryAutomaton(ldlA, ps);
         automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
         comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, null);
         automaton = new Reducer<>().transform(automaton);
@@ -238,79 +248,258 @@ public class ParseLTLfFormulaTest {
         printComparison(automaton, comp, ldlA);
 //        assertEquals(automaton.toString(), comp.toString()); // Not the same, accepts empty trace
 
-        // a && b
-        ldlA = new LDLfLocalVar(a);
-        left = getElementaryAutomaton(ldlA, ps);
-        ldlB = new LDLfLocalVar(b);
-        right = getElementaryAutomaton(ldlB, ps);
-        ldlA = new LDLfLocalAndFormula(ldlA, ldlB);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
+//        // a && b
+//        ldlA = new LDLfLocalVar(a);
+//        left = getElementaryAutomaton(ldlA, ps);
+//        ldlB = new LDLfLocalVar(b);
+//        right = getElementaryAutomaton(ldlB, ps);
+//        ldlA = new LDLfLocalAndFormula(ldlA, ldlB);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // a || b
+//        ldlA = new LDLfLocalVar(a);
+//        left = getElementaryAutomaton(ldlA, ps);
+//        ldlB = new LDLfLocalVar(b);
+//        right = getElementaryAutomaton(ldlB, ps);
+//        ldlA = new LDLfLocalOrFormula(ldlA, ldlB);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString()); // Does not loop in accepting state
+//
+//        // <true>ff
+//        regExp = new RegExpLocalTrue();
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfffFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfDiamondFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // <false>tt
+//        regExp = new RegExpLocalFalse();
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfLocalTrueFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfDiamondFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // <a>tt
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfttFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfDiamondFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // [true]ff
+//        regExp = new RegExpLocalTrue();
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfffFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfBoxFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // [false]tt
+//        regExp = new RegExpLocalFalse();
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfttFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfBoxFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
 
-        // a || b
-        ldlA = new LDLfLocalVar(a);
-        left = getElementaryAutomaton(ldlA, ps);
-        ldlB = new LDLfLocalVar(b);
-        right = getElementaryAutomaton(ldlB, ps);
-        ldlA = new LDLfLocalOrFormula(ldlA, ldlB);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString()); // Does not loop in accepting state
+//        // [a]ff
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfffFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfBoxFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // [*(a)]ff
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        regExp = new RegExpStar(regExp);
+//        right = LDLfToAutomaton(declare, getEndFormula(), ps);
+//        left = compositionAutomatonFactory(regExp.getFormulaType(), left, right);
+//        ldlA = new LDLfffFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfBoxFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//
+//        // [*(true)](([NOT(a)](ff)) TeOR ([true](ff)))
+//        // [NOT(a)](ff)
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        comp = LDLfToAutomaton(declare, regExpLDLf, ps);
+//        regExp2 = new RegExpLocalNot(regExp);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp2);
+//        comp = compositionAutomatonFactory(regExpLDLf.getFormulaType(), comp, null);
+//        ldlA = new LDLfffFormula();
+//        comp2 = LDLfToAutomaton(declare, ldlA, ps);
+//        ldlB = new LDLfBoxFormula(regExp2, ldlA);
+//        comp3 = compositionAutomatonFactory(ldlB.getFormulaType(), comp, comp2);
+//        comp3 = new Reducer<>().transform(comp3);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlB, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        printComparison(automaton, comp3, ldlB);
+//        // [*(true)]([NOT(a)](ff))
+////        regExp = new RegExpLocalTrue();
+//        // [*(a)]([NOT(a)](ff))
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        comp = getElementaryAutomaton(regExpLDLf, ps);
+//        regExp = new RegExpStar(regExp);
+//        right = LDLfToAutomaton(declare, getEndFormula(), ps);
+//        comp = compositionAutomatonFactory(regExp.getFormulaType(), comp, right);
+//        ldlA = new LDLfBoxFormula(regExp, ldlB);
+//        comp2 = compositionAutomatonFactory(ldlA.getFormulaType(), comp, comp3);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp2 = new Reducer<>().transform(comp2);
+//        printComparison(automaton, comp2, ldlA);
 
-        // <true>ff
+//        // <true>((<a>(tt)) TeAND (<true>(tt)))
+//        // <true>tt
+//        regExp = new RegExpLocalTrue();
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlA = new LDLfttFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfDiamondFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+//        // <a>tt
+//        regExp2 = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp2);
+//        left2 = getElementaryAutomaton(regExpLDLf, ps);
+//        ldlB = new LDLfttFormula();
+//        right2 = getElementaryAutomaton(ldlB, ps);
+//        ldlB = new LDLfDiamondFormula(regExp2, ldlB);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlB, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp2 = compositionAutomatonFactory(ldlB.getFormulaType(), left2, right2);
+//        comp2 = new Reducer<>().transform(comp2);
+//        printComparison(automaton, comp2, ldlB);
+////        assertEquals(automaton.toString(), comp2.toString());
+//        // (<a>(tt)) TeAND (<true>(tt))
+//        ldlA = new LDLfTempAndFormula(ldlA, ldlB);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp3 = compositionAutomatonFactory(ldlA.getFormulaType(), comp, comp2);
+//        comp3 = new Reducer<>().transform(comp3);
+//        printComparison(automaton, comp3, ldlA);
+////        assertEquals(automaton.toString(), comp3.toString()); // Correct but inverted I and T
+//        // <true>((<a>(tt)) TeAND (<true>(tt)))
+//        ldlB = new LDLfDiamondFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlB, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp4 = compositionAutomatonFactory(ldlB.getFormulaType(), left, comp3);
+//        comp4 = new Reducer<>().transform(comp4);
+//        printComparison(automaton, comp4, ldlB);
+////        assertEquals(automaton.toString(), comp3.toString()); // Not correct
+    }
+
+    @Test
+    public void elementaryCompTest2() {
+        boolean declare = true;
+        Automaton automaton;
+        Automaton comp;
+        Automaton comp2;
+        Automaton comp3;
+        Automaton comp4;
+        Automaton left;
+        Automaton right;
+        Automaton left2;
+        Automaton right2;
+        Automaton left3;
+        Automaton right3;
+        LDLfFormula ldlA;
+        LDLfFormula ldlB;
+        RegExp regExp;
+        RegExp regExp2;
+        LDLfFormula regExpLDLf;
+        PropositionalSignature ps = generateSignature();
+        Proposition a = new Proposition("a");
+        Proposition b = new Proposition("b");
+
+//        // [*(a)]ff
+//        regExp = new RegExpLocalVar(a);
+//        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
+//        left = getElementaryAutomaton(regExpLDLf, ps);
+//        regExp = new RegExpStar(regExp);
+//        right = LDLfToAutomaton(declare, getEndFormula(), ps);
+//        left = compositionAutomatonFactory(regExp.getFormulaType(), left, right);
+//        ldlA = new LDLfffFormula();
+//        right = getElementaryAutomaton(ldlA, ps);
+//        ldlA = new LDLfBoxFormula(regExp, ldlA);
+//        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
+//        automaton = new Reducer<>().transform(automaton);
+//        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
+//        comp = new Reducer<>().transform(comp);
+//        printComparison(automaton, comp, ldlA);
+////        assertEquals(automaton.toString(), comp.toString());
+
+        // [*(true)](a)
         regExp = new RegExpLocalTrue();
         regExpLDLf = regExpAtomicLocal2LDLf(regExp);
         left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfffFormula();
-        right = getElementaryAutomaton(ldlA, ps);
-        ldlA = new LDLfDiamondFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
-        // <false>tt
-        regExp = new RegExpLocalFalse();
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
-        left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfLocalTrueFormula();
-        right = getElementaryAutomaton(ldlA, ps);
-        ldlA = new LDLfDiamondFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
-        // <a>tt
-        regExp = new RegExpLocalVar(a);
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
-        left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfttFormula();
-        right = getElementaryAutomaton(ldlA, ps);
-        ldlA = new LDLfDiamondFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-
-        // [true]ff
-        regExp = new RegExpLocalTrue();
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
-        left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfffFormula();
+        regExp = new RegExpStar(regExp);
+        right = LDLfToAutomaton(declare, getEndFormula(), ps);
+        left = compositionAutomatonFactory(regExp.getFormulaType(), left, right);
+        ldlA = new LDLfLocalVar(a);
         right = getElementaryAutomaton(ldlA, ps);
         ldlA = new LDLfBoxFormula(regExp, ldlA);
         automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
@@ -318,66 +507,7 @@ public class ParseLTLfFormulaTest {
         comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
         comp = new Reducer<>().transform(comp);
         printComparison(automaton, comp, ldlA);
-        assertEquals(automaton.toString(), comp.toString());
-
-        // [false]tt
-        regExp = new RegExpLocalFalse();
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
-        left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfLocalTrueFormula();
-        right = getElementaryAutomaton(ldlA, ps);
-        ldlA = new LDLfBoxFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
 //        assertEquals(automaton.toString(), comp.toString());
-
-
-        // <true>((<a>(tt)) TeAND (<true>(tt)))
-        // <true>tt
-        regExp = new RegExpLocalTrue();
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp);
-        left = getElementaryAutomaton(regExpLDLf, ps);
-        ldlA = new LDLfttFormula();
-        right = getElementaryAutomaton(ldlA, ps);
-        ldlA = new LDLfDiamondFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp = compositionAutomatonFactory(ldlA.getFormulaType(), left, right);
-        comp = new Reducer<>().transform(comp);
-        printComparison(automaton, comp, ldlA);
-//        assertEquals(automaton.toString(), comp.toString());
-        // <a>tt
-        regExp2 = new RegExpLocalVar(a);
-        regExpLDLf = regExpAtomicLocal2LDLf(regExp2);
-        left2 = getElementaryAutomaton(regExpLDLf, ps);
-        ldlB = new LDLfttFormula();
-        right2 = getElementaryAutomaton(ldlB, ps);
-        ldlB = new LDLfDiamondFormula(regExp2, ldlB);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlB, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp2 = compositionAutomatonFactory(ldlB.getFormulaType(), left2, right2);
-        comp2 = new Reducer<>().transform(comp2);
-        printComparison(automaton, comp2, ldlB);
-//        assertEquals(automaton.toString(), comp2.toString());
-        // (<a>(tt)) TeAND (<true>(tt))
-        ldlA = new LDLfTempAndFormula(ldlA, ldlB);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlA, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp3 = compositionAutomatonFactory(ldlA.getFormulaType(), comp, comp2);
-        comp3 = new Reducer<>().transform(comp3);
-        printComparison(automaton, comp3, ldlA);
-//        assertEquals(automaton.toString(), comp3.toString()); // Correct but inverted I and T
-        // <true>((<a>(tt)) TeAND (<true>(tt)))
-        ldlB = new LDLfDiamondFormula(regExp, ldlA);
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlB, ps);
-        automaton = new Reducer<>().transform(automaton);
-        comp4 = compositionAutomatonFactory(ldlB.getFormulaType(), left, comp3);
-        comp4 = new Reducer<>().transform(comp4);
-        printComparison(automaton, comp4, ldlB);
-//        assertEquals(automaton.toString(), comp3.toString()); // Not correct
     }
 
     private void printComparison(Automaton automaton, Automaton comp, LDLfFormula formula) {
@@ -410,11 +540,25 @@ public class ParseLTLfFormulaTest {
 
         if (formula instanceof LDLfttFormula) {
             initialState = automaton.addState(true, true);
+//            try {
+//                automaton.addTransition(new Transition<PossibleWorld>(initialState, null, initialState));
+//            } catch (NoSuchStateException e) {
+//                e.printStackTrace();
+//            }
             addLoopingTransitions(labels, initialState, initialState, automaton);
         } else if (formula instanceof LDLfffFormula) {
             initialState = automaton.addState(true, false);
+//            try {
+//                automaton.addTransition(new Transition<PossibleWorld>(initialState, null, initialState));
+//            } catch (NoSuchStateException e) {
+//                e.printStackTrace();
+//            }
             addLoopingTransitions(labels, initialState, initialState, automaton);
         } else {
+            if (!(formula instanceof LDLfLocalFormula)) {
+                throw new IllegalArgumentException("Formula is not a LDLfLocalFormula: " + formula.getFormulaType());
+            }
+
             initialState = automaton.addState(true, false);
             endState = automaton.addState(false, true);
             falseState = automaton.addState(false, false);
@@ -422,11 +566,11 @@ public class ParseLTLfFormulaTest {
             PropositionalFormula propFormula = ((LDLfLocalFormula) formula).LDLfLocal2Prop();
 
             for (PossibleWorld label : labels) {
-                Transition transition;
+                Transition<PossibleWorld> transition;
                 if (label.satisfies(propFormula)) {
-                    transition = new Transition(initialState, label, endState);
+                    transition = new Transition<>(initialState, label, endState);
                 } else {
-                    transition = new Transition(initialState, label, falseState);
+                    transition = new Transition<>(initialState, label, falseState);
                 }
 
                 try {
@@ -443,8 +587,10 @@ public class ParseLTLfFormulaTest {
                 endState.setTerminal(false);
             }
 
-            addLoopingTransitions(labels, falseState, falseState, automaton);
+//            addLoopingTransitions(labels, falseState, falseState, automaton);
         }
+
+        automaton = new Reducer<>().transform(automaton);
 
         return automaton;
     }
@@ -583,7 +729,8 @@ public class ParseLTLfFormulaTest {
         /*
         * Base case when the formula is an atomic proposition
         */
-        if (formula instanceof AtomicFormula) {
+        if (formula instanceof LocalFormula || formula instanceof AtomicFormula) {
+//        if (formula instanceof AtomicFormula) {
             automaton = getElementaryAutomaton(formula, ps);
             automaton = compositionAutomatonFactory(formula.getFormulaType(), automaton, null);
             return automaton;
@@ -633,12 +780,18 @@ public class ParseLTLfFormulaTest {
             Formula nested = uFormula.getNestedFormula();
             if (nested instanceof RegExp) {
                 automaton = regexpToAutomaton(declare, (RegExp) nested, ps);
-            } else if (nested instanceof LDLfFormula) {
-                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps); //Special case (RegExpTest)
+            } else if (nested instanceof LDLfFormula) { //Special case when RegExpTest
+                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps);
             } else {
                 throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
             }
-            automaton = compositionAutomatonFactory(regExp.getFormulaType(), automaton, null);
+
+            if (regExp instanceof RegExpStar) {
+                Automaton end = LDLfToAutomaton(declare, getEndFormula(), ps);
+                automaton = compositionAutomatonFactory(regExp.getFormulaType(), automaton, end);
+            } else {
+                automaton = compositionAutomatonFactory(regExp.getFormulaType(), automaton, null);
+            }
         } else if (regExp instanceof BinaryFormula) {
             BinaryFormula bFormula = (BinaryFormula) regExp;
             RegExp left = (RegExp) bFormula.getLeftFormula(); //Can be LDLfFormula?
@@ -665,39 +818,59 @@ public class ParseLTLfFormulaTest {
 
         switch (type) {
             case LDLf_LOCAL_TRUE:
-            case LDLf_tt:
             case LDLf_LOCAL_FALSE:
-            case LDLf_ff:
             case LDLf_LOCAL_VAR:
+            case LDLf_LOCAL_NOT:
+            case LDLf_LOCAL_AND:
+            case LDLf_LOCAL_OR:
+            case LDLf_tt:
+            case LDLf_ff:
                 compAutomaton = left;
                 break;
-            case LDLf_LOCAL_NOT:
                 /*
                 To avoid accepting epsilon after complement
                  */
-                Set<State> statesSet = left.states();
-                for (State s : statesSet) {
-                    if (s.isInitial()) {
-                        s.setTerminal(true);
-                    }
-                }
-                compAutomaton = new Complement<>().transform(left);
-                break;
-            case LDLf_LOCAL_AND:
+//                compAutomaton = getComplementNotEpsilonAutomaton(left);
+//                compAutomaton = new Complement<>().transform(left);
+//                break;
+//            case LDLf_LOCAL_AND:
             case LDLf_TEMP_AND:
                 compAutomaton = new Mix<>().transform(left, right);
                 break;
-            case LDLf_LOCAL_OR:
+//            case LDLf_LOCAL_OR:
             case LDLf_TEMP_OR:
                 compAutomaton = new Union<>().transform(left, right);
                 break;
             case LDLf_BOX:
-                Automaton complement = new Complement<>().transform(left);
-                compAutomaton = new Concatenation<>().transform(left, right);
-                compAutomaton = new Union<>().transform(complement, compAutomaton);
+                /* Best options so far */
+//                Set<State> stateSet1 = left.states();
+//                for (State s : stateSet1) {
+//                    s.setTerminal(!s.isTerminal());
+//                }
+//                Automaton complement = left.clone();
+//                compAutomaton = new Union<>().transform(complement, right);
+//                compAutomaton = new Reducer<>().transform(compAutomaton);
+                /* ----------------- */
+
+                Automaton compRight = new Complement<>().transform(right);
+                compAutomaton = new MyConcatenation<>().transform(left, compRight);
+                compAutomaton = new Reducer<>().transform(compAutomaton);
+                compAutomaton = new Complement<>().transform(compAutomaton);
+
                 break;
+            case RE_CONCAT: // More needed?
             case LDLf_DIAMOND:
+//                left = new SinkComplete().transform(left);
                 compAutomaton = new MyConcatenation<>().transform(left, right);
+                break;
+//            case RE_TEST:
+//                compAutomaton = left;
+//                break;
+            case RE_STAR: // use LDL2DFA algorithm as in de2021?
+                compAutomaton = new Concatenation<>().transform(left, right);
+                compAutomaton = new Reducer<>().transform(compAutomaton);
+                compAutomaton = new Star<>().transform(compAutomaton);
+                compAutomaton = new Reducer<>().transform(compAutomaton);
                 break;
             default:
                 throw new IllegalArgumentException("Not implemented yet: " + type);
@@ -707,8 +880,9 @@ public class ParseLTLfFormulaTest {
 //            LDLf_TEMP_DOUBLEIMPL,
 //            LDLf_LOCAL_IMPL,
 //            LDLf_LOCAL_DOUBLEIMPL,
-//            RE_STAR (use LDL2DFA algorithm as in de2021?)
         }
+
+//        compAutomaton = new Reducer<>().transform(compAutomaton);
 
         return compAutomaton;
     }
@@ -906,5 +1080,52 @@ public class ParseLTLfFormulaTest {
         output = implementation.visit(tree);
 
         return output;
+    }
+
+    private LDLfFormula getEndFormula() {
+        // [true]ff
+        RegExp regExp = new RegExpLocalTrue();
+        LDLfFormula ldl = new LDLfffFormula();
+        return new LDLfBoxFormula(regExp, ldl);
+    }
+
+    private Automaton getComplementNotEpsilonAutomaton(Automaton automaton) {
+        Automaton temp = automaton.clone();
+
+        Set<State> states = temp.states();
+        for (State s : states) {
+            if (s.isInitial()) {
+                /* To avoid accepting epsilon */
+                if (s.isTerminal()) {
+                    s.setTerminal(false);
+                }
+            } else {
+                s.setTerminal(!s.isTerminal());
+            }
+        }
+
+        return temp.clone();
+    }
+
+    private Automaton getComplementAutomaton(Automaton automaton) {
+        Automaton temp = automaton.clone();
+
+        Set<State> states = temp.states();
+        for (State s : states) {
+            s.setTerminal(!s.isTerminal());
+        }
+
+        return temp.clone();
+    }
+
+    private Automaton getEpsilonAcceptAutomaton(Automaton automaton) {
+        Automaton temp = automaton.clone();
+
+        Set<State> initials = temp.initials();
+        for (State s : initials) {
+            s.setTerminal(true);
+        }
+
+        return temp.clone();
     }
 }
