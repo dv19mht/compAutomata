@@ -22,24 +22,24 @@ import static org.junit.Assert.assertTrue;
 
 public class CompAutomataTest {
 
-    @Test
-    public void convertAutomataTest() {
-        boolean declare = true;
-        PropositionalSignature ps = generateSignature();
-
-        LDLfFormula formula = ParserUtils.parseLDLfFormula("<a>(tt)");
-        Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, formula, ps);
-        ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
-        Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, formula, ps);
-        Automaton comp2 = CompAutomatonUtils.convertLDLf2DFAtoCompositional(ldlf2dfa);
-
-        Automaton orAutomaton = new Union<>().transform(ldlf2dfa, comp);
-        orAutomaton = new Reducer<>().transform(orAutomaton);
-        Automaton orAutomaton2 = new Union<>().transform(comp2, comp);
-        orAutomaton2 = new Reducer<>().transform(orAutomaton2);
-
-        printComparison(orAutomaton, orAutomaton2, formula);
-    }
+//    @Test
+//    public void convertAutomataTest() {
+//        boolean declare = true;
+//        PropositionalSignature ps = generateSignature();
+//
+//        LDLfFormula formula = ParserUtils.parseLDLfFormula("<a>(tt)");
+//        Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, formula, ps);
+//        ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
+//        Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, formula, ps);
+//        Automaton comp2 = CompAutomatonUtils.convertLDLf2DFAtoCompositional(ldlf2dfa);
+//
+//        Automaton orAutomaton = new Union<>().transform(ldlf2dfa, comp);
+//        orAutomaton = new Reducer<>().transform(orAutomaton);
+//        Automaton orAutomaton2 = new Union<>().transform(comp2, comp);
+//        orAutomaton2 = new Reducer<>().transform(orAutomaton2);
+//
+//        printComparison(orAutomaton, orAutomaton2, formula);
+//    }
 
     @Test
     public void findTestFormula() {
@@ -188,10 +188,10 @@ public class CompAutomataTest {
 //        compareAutomataOnLTL("G(a)", declare, ps);
 
         compareAutomataOnLTL("a U b", declare, ps); // RE_TEST
-//
-//        compareAutomataOnLTL("a W b", declare, ps); // RE_TEST
-//
-//        compareAutomataOnLTL("a R b", declare, ps); // RE_TEST
+
+        compareAutomataOnLTL("a W b", declare, ps); // RE_TEST
+
+        compareAutomataOnLTL("a R b", declare, ps); // RE_TEST
 
 //        compareAutomataOnLTL("a <-> b", declare, ps);
 //
