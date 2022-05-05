@@ -25,6 +25,10 @@ import java.util.*;
 public class CompAutomatonUtils {
 
     public static Automaton LDLfToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps) {
+        return LDLfToAutomaton(declare, formula, ps, System.currentTimeMillis(), Long.MAX_VALUE);
+    }
+
+    public static Automaton LDLfToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
 
         /*
@@ -33,20 +37,23 @@ public class CompAutomatonUtils {
         if (formula instanceof AtomicFormula) {
             automaton = getElementaryAutomaton(formula, ps);
             return automaton;
+        } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
+            // time limit reached
+            return new Automaton();
         }
 
         /* Else parse subformula */
         if (formula instanceof UnaryFormula) {
             UnaryFormula uFormula = (UnaryFormula) formula;
             LDLfFormula nested = (LDLfFormula) uFormula.getNestedFormula();
-            automaton = LDLfToAutomaton(declare, nested, ps);
+            automaton = LDLfToAutomaton(declare, nested, ps, timeStarted, timeLimit);
             automaton = compositionAutomatonFactory(formula.getFormulaType(), null, automaton, null);
         } else if (formula instanceof BinaryFormula) {
             BinaryFormula bFormula = (BinaryFormula) formula;
             LDLfFormula left = (LDLfFormula) bFormula.getLeftFormula();
             LDLfFormula right = (LDLfFormula) bFormula.getRightFormula();
-            Automaton leftAutomaton = LDLfToAutomaton(declare, left, ps);
-            Automaton rightAutomaton = LDLfToAutomaton(declare, right, ps);
+            Automaton leftAutomaton = LDLfToAutomaton(declare, left, ps, timeStarted, timeLimit);
+            Automaton rightAutomaton = LDLfToAutomaton(declare, right, ps, timeStarted, timeLimit);
             automaton = compositionAutomatonFactory(formula.getFormulaType(), null, leftAutomaton, rightAutomaton);
         } else if (formula instanceof TemporalFormula) {
 //            System.err.println("Formula: " + formula);
@@ -58,16 +65,16 @@ public class CompAutomatonUtils {
                 /*
                 Use top-down algorithm
                  */
-//                System.err.println("Using LDLF2DFA");
-                automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps);
+                System.err.println("Using LDLF2DFA");
+                automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
                 automaton = new Reducer<>().transform(automaton);
             } else {
                 /*
                 Proceed with compositional algorithm
                  */
 //                System.err.println("Using COMPOSITIONAL");
-                Automaton regAutomaton = regexpToAutomaton(declare, reg, ps);
-                Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps);
+                Automaton regAutomaton = regexpToAutomaton(declare, reg, ps, timeStarted, timeLimit);
+                Automaton goalAutomaton = LDLfToAutomaton(declare, goal, ps, timeStarted, timeLimit);
                 automaton = compositionAutomatonFactory(formula.getFormulaType(), reg, regAutomaton, goalAutomaton);
             }
         } else {
@@ -85,6 +92,10 @@ public class CompAutomatonUtils {
     }
 
     private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps) {
+        return regexpToAutomaton(declare, regExp, ps, System.currentTimeMillis(), Long.MAX_VALUE);
+    }
+
+    private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
 
         /* Base case when expression is atomic proposition or local formula */
@@ -92,6 +103,9 @@ public class CompAutomatonUtils {
             //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
             automaton = getElementaryAutomaton(regExp, ps);
             return automaton;
+        } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
+            // time limit reached
+            return new Automaton();
         }
 
         /* Else parse subformula */
@@ -100,16 +114,16 @@ public class CompAutomatonUtils {
             Formula nested = uFormula.getNestedFormula();
 
             if (nested instanceof RegExp) {
-                automaton = regexpToAutomaton(declare, (RegExp) nested, ps);
+                automaton = regexpToAutomaton(declare, (RegExp) nested, ps, timeStarted, timeLimit);
             } else if (nested instanceof LDLfFormula) {
                 //Special case when RegExpTest
-                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps);
+                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps, timeStarted, timeLimit);
             } else {
                 throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
             }
 
             if (regExp instanceof RegExpStar) {
-                Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps);
+                Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps, timeStarted, timeLimit);
                 automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, end);
             } else {
                 automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, null);
@@ -118,8 +132,8 @@ public class CompAutomatonUtils {
             BinaryFormula bFormula = (BinaryFormula) regExp;
             RegExp left = (RegExp) bFormula.getLeftFormula();
             RegExp right = (RegExp) bFormula.getRightFormula();
-            Automaton leftAutomaton = regexpToAutomaton(declare, left, ps);
-            Automaton rightAutomaton = regexpToAutomaton(declare, right, ps);
+            Automaton leftAutomaton = regexpToAutomaton(declare, left, ps, timeStarted, timeLimit);
+            Automaton rightAutomaton = regexpToAutomaton(declare, right, ps, timeStarted, timeLimit);
             automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, leftAutomaton, rightAutomaton);
         } else {
             throw new IllegalArgumentException("Illegal regexp " + regExp);
