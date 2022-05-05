@@ -78,6 +78,10 @@ public class Main {
     }
 
     public static LTLfAutomatonResultWrapper ltlfFormula2Aut(LTLfFormula formula, PropositionalSignature signature, boolean declare, boolean minimize, boolean trim, boolean printing) {
+        return ltlfFormula2Aut(formula, signature, declare, minimize, trim, printing, Long.MAX_VALUE);
+    }
+
+    public static LTLfAutomatonResultWrapper ltlfFormula2Aut(LTLfFormula formula, PropositionalSignature signature, boolean declare, boolean minimize, boolean trim, boolean printing, long timeLimit) {
 
         LDLfFormula ldlff = formula.toLDLf();
         //System.out.println("Original LTLf input formula:");
@@ -103,7 +107,7 @@ public class Main {
         /*
         Actual automaton construction
          */
-        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlff, newSig);
+        automaton = AutomatonUtils.ldlf2Automaton(declare, ldlff, newSig, timeLimit);
 
         // TRANSFORMATIONS
         automaton = transformations(automaton, minimize, trim);

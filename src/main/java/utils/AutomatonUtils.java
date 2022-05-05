@@ -38,8 +38,12 @@ import java.util.Set;
  */
 public class AutomatonUtils {
 
-
     public static Automaton ldlf2Automaton(boolean declare, LDLfFormula initialFormula, PropositionalSignature ps) {
+        return ldlf2Automaton(declare, initialFormula, ps, Long.MAX_VALUE);
+    }
+
+    public static Automaton ldlf2Automaton(boolean declare, LDLfFormula initialFormula, PropositionalSignature ps, long timeLimit) {
+        long timeStarted = System.currentTimeMillis();
 
         // Automaton initialization: empty automaton
         QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
@@ -91,7 +95,7 @@ public class AutomatonUtils {
         }
 
         // Cycle on states yet to be analyzed
-        while (!toAnalyze.isEmpty()) {
+        while (!toAnalyze.isEmpty() && ((System.currentTimeMillis() - timeStarted) < timeLimit)) {
             QuotedFormulaState currentState = toAnalyze.getFirst();
             // Conjunction of the QuotedVar belonging to the current state
             QuotedFormula currentFormula = currentState.getQuotedConjunction();
@@ -139,6 +143,10 @@ public class AutomatonUtils {
 
                 }
 
+                /* timeout */
+                if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
+                    break;
+                }
             }
             toAnalyze.remove(currentState);
         }
