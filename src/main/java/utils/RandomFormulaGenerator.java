@@ -7,9 +7,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class RandomFormulaUtils {
+public class RandomFormulaGenerator {
+    private Random random;
 
-    public static LTLfFormula getRandomFormula(List<Proposition> props, int length, double probabilityUorR) {
+    public RandomFormulaGenerator() {
+        this(new Random());
+    }
+
+    public RandomFormulaGenerator(Random random) {
+        this.random = random;
+    }
+
+    public LTLfFormula getRandomFormula(List<Proposition> props, int length, double probabilityUorR) {
         if (length < 1) {
             throw new IllegalArgumentException("Formula length must be more than 0");
         } else if (probabilityUorR < 0 || probabilityUorR > 1) {
@@ -21,8 +30,6 @@ public class RandomFormulaUtils {
         LTLfFormula formula;
         LTLfFormula left;
         LTLfFormula right;
-        Random random = new Random();
-
 
         /* base case when length is 1 or 2 */
         if (length == 1) {
@@ -72,7 +79,7 @@ public class RandomFormulaUtils {
         return formula;
     }
 
-    public static LTLfFormula getRandomFormulaNoUorR(List<Proposition> props, int length, double probabilityUorR) {
+    public LTLfFormula getRandomFormulaNoUorR(List<Proposition> props, int length, double probabilityUorR) {
         if (length < 1) {
             throw new IllegalArgumentException("Formula length must be more than 0");
         } else if (probabilityUorR < 0 || probabilityUorR > 1) {
@@ -84,7 +91,6 @@ public class RandomFormulaUtils {
         LTLfFormula formula;
         LTLfFormula left;
         LTLfFormula right;
-        Random random = new Random();
 
         /* base case when length is 1 or 2 */
         if (length == 1) {
@@ -121,7 +127,7 @@ public class RandomFormulaUtils {
         return formula;
     }
 
-    public static LTLfFormula getRandomFormulaForG(List<Proposition> props, int length, double probabilityUorR, int seed) {
+    public LTLfFormula getRandomFormulaForG(List<Proposition> props, int length, double probabilityUorR) {
         if (length < 1) {
             throw new IllegalArgumentException("Formula length must be more than 0");
         } else if (probabilityUorR < 0 || probabilityUorR > 1) {
@@ -133,14 +139,12 @@ public class RandomFormulaUtils {
         LTLfFormula formula;
         LTLfFormula left;
         LTLfFormula right;
-        Random random = new Random();
-        random.setSeed(seed);
 
         /* base case when length is 1 or 2 */
         if (length == 1) {
-            return getUnitLengthFormula(props, seed);
+            return getUnitLengthFormula(props);
         } else if (length == 2) {
-            return getLength2Formula(props, seed);
+            return getLength2Formula(props);
         }
 
         /* calc probability for operators */
@@ -155,25 +159,25 @@ public class RandomFormulaUtils {
 
         if (randomOp < probTemp) {
             // finally
-            formula = new LTLfEventuallyFormula(getRandomFormulaForG(props, length - 1, probabilityUorR, seed));
+            formula = new LTLfEventuallyFormula(getRandomFormulaForG(props, length - 1, probabilityUorR));
         } else if (randomOp < (2 * probTemp)) {
             // globally
-            formula = new LTLfGloballyFormula(getRandomFormulaForG(props, length - 1, probabilityUorR, seed));
+            formula = new LTLfGloballyFormula(getRandomFormulaForG(props, length - 1, probabilityUorR));
         } else if (randomOp < (2 * probTemp + 1 * probNotTemp)) {
             // not
-            formula = new LTLfTempNotFormula(getRandomFormulaForG(props, length - 1, probabilityUorR, seed));
+            formula = new LTLfTempNotFormula(getRandomFormulaForG(props, length - 1, probabilityUorR));
         } else if (randomOp < (2 * probTemp + 2 * probNotTemp)) {
             // next
-            formula = new LTLfNextFormula(getRandomFormulaForG(props, length - 1, probabilityUorR, seed));
+            formula = new LTLfNextFormula(getRandomFormulaForG(props, length - 1, probabilityUorR));
         } else if (randomOp < (2 * probTemp + 3 * probNotTemp)) {
             // and
-            left = getRandomFormulaForG(props, s1, probabilityUorR, seed);
-            right = getRandomFormulaForG(props, s2, probabilityUorR, seed);
+            left = getRandomFormulaForG(props, s1, probabilityUorR);
+            right = getRandomFormulaForG(props, s2, probabilityUorR);
             formula = new LTLfTempAndFormula(left, right);
         } else {
             // or
-            left = getRandomFormulaForG(props, s1, probabilityUorR, seed);
-            right = getRandomFormulaForG(props, s2, probabilityUorR, seed);
+            left = getRandomFormulaForG(props, s1, probabilityUorR);
+            right = getRandomFormulaForG(props, s2, probabilityUorR);
             formula = new LTLfTempOrFormula(left, right);
         }
 
@@ -192,32 +196,15 @@ public class RandomFormulaUtils {
         return propositions;
     }
 
-    private static LTLfFormula getUnitLengthFormula(List<Proposition> props) {
-        return getUnitLengthFormula(props, 0);
-    }
-
-    private static LTLfFormula getUnitLengthFormula(List<Proposition> props, int seed) {
-        Random random = new Random();
-        if (seed != 0) {
-            random.setSeed(seed);
-        }
-
+    private LTLfFormula getUnitLengthFormula(List<Proposition> props) {
         int randomIndex = random.nextInt(props.size());
         Proposition p = props.get(randomIndex);
         LTLfFormula formula = new LTLfLocalVar(p);
         return formula;
     }
 
-    private static LTLfFormula getLength2Formula(List<Proposition> props) {
-        return getLength2Formula(props, 0);
-    }
-
-    private static LTLfFormula getLength2Formula(List<Proposition> props, int seed) {
+    private LTLfFormula getLength2Formula(List<Proposition> props) {
         LTLfFormula formula;
-        Random random = new Random();
-        if (seed != 0) {
-            random.setSeed(seed);
-        }
 
         int randomOp = random.nextInt(2);
         if (randomOp == 0) {
