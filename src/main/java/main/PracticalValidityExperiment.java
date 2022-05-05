@@ -79,7 +79,7 @@ public class PracticalValidityExperiment {
         double timeConstraintRatio = (double) timeConstraints / elapsedTime;
         timeConstraintRatio = Math.round(timeConstraintRatio * 100);
 
-        printResults(num, timeConstraints, mainAutomaton, elapsedTime, timeConstraintRatio, "ldl2dfa");
+        printResults(num, timeConstraints, mainAutomaton, elapsedTime, timeConstraintRatio, "ldlf2nfa");
 
 //        System.out.print("Running compliant trace... ");
 //        List<String> complLog = generateCompliantLogInc(num);
@@ -91,7 +91,7 @@ public class PracticalValidityExperiment {
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
 
-        return "ldlf2dfa;" + num + ";" + elapsedTime + ";" + timeConstraints + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
+        return "ldlf2nfa;" + num + ";" + elapsedTime + ";" + timeConstraints + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
     }
 
     //Conjunction of formulae before automaton creation
