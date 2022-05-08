@@ -19,7 +19,6 @@ import rationals.Automaton;
 import rationals.NoSuchStateException;
 import rationals.State;
 import rationals.Transition;
-import rationals.properties.isEmpty;
 import rationals.transformations.*;
 
 import java.util.*;
@@ -30,13 +29,13 @@ public class CompAutomatonUtils {
         return LDLfToAutomaton(declare, formula, ps, System.currentTimeMillis(), Long.MAX_VALUE);
     }
 
-    public static Automaton LDLfToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
+    public static Automaton LDLfToAutomaton(boolean declare, Formula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
 
         /*
-         * Base case when the formula is an atomic proposition, i.e. 'tt' or 'ff'
+         * Base case when the formula is an atomic proposition, i.e. 'tt', 'ff' or propositional regexp
          */
-        if (formula instanceof AtomicFormula) {
+        if (formula instanceof AtomicFormula || formula instanceof LocalFormula) {
             automaton = getElementaryAutomaton(formula, ps);
             return automaton;
         } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
@@ -46,18 +45,13 @@ public class CompAutomatonUtils {
 
         /* Else parse subformula */
         if (formula instanceof UnaryFormula) {
-            automaton = unaryToAutomaton(declare, formula, ps, timeStarted, timeLimit);
+            automaton = unaryToAutomaton(declare, (UnaryFormula) formula, ps, timeStarted, timeLimit);
         } else if (formula instanceof BinaryFormula) {
-            automaton = binaryToAutomaton(declare, formula, ps, timeStarted, timeLimit);
-        } else if (formula instanceof TemporalFormula) {
-            // Diamond or Box formula
-            if (formula instanceof LDLfDiamondFormula) {
-                automaton = diamondToAutomaton(declare, formula, ps, timeStarted, timeLimit);
-            } else if (formula instanceof LDLfBoxFormula) {
-                automaton = boxToAutomaton(declare, formula, ps, timeStarted, timeLimit);
-            } else {
-                throw new IllegalArgumentException("Unknown temporal formula " + formula);
-            }
+            automaton = binaryToAutomaton(declare, (BinaryFormula) formula, ps, timeStarted, timeLimit);
+        } else if (formula instanceof LDLfDiamondFormula) {
+            automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
+        } else if (formula instanceof LDLfBoxFormula) {
+            automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
         } else {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
@@ -67,45 +61,44 @@ public class CompAutomatonUtils {
         return automaton;
     }
 
-    private static Automaton boxToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
+    private static Automaton boxToAutomaton(boolean declare, LDLfBoxFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
         Automaton rhoLeftAutomaton;
         Automaton rhoRightAutomaton;
         Automaton phiAutomaton;
 
-        LDLfTempOpTempFormula tFormula = (LDLfTempOpTempFormula) formula;
-        RegExp rho = tFormula.getRegExp();
-        LDLfFormula phi = tFormula.getGoalFormula();
+        RegExp rho = formula.getRegExp();
+        LDLfFormula phi = formula.getGoalFormula();
 
         /* [psi?]phi = !psi || phi */
         if (rho instanceof RegExpTest) {
-            rhoLeftAutomaton = regexpToAutomaton(declare, rho, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
 
             Automaton rhoComplement = new SinkComplete().transform(rhoLeftAutomaton);
             rhoComplement = new Complement<>().transform(rhoComplement);
             automaton = new Union<>().transform(rhoComplement, phiAutomaton);
         }
-
         /* [rho1 ; rho2]phi = [rho1][rho2]phi */
         else if (rho instanceof RegExpConcat) {
             RegExp leftFormula = ((RegExpConcat) rho).getLeftFormula();
             RegExp rightFormula = ((RegExpConcat) rho).getRightFormula();
 
-            rhoLeftAutomaton = regexpToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
-            rhoRightAutomaton = regexpToAutomaton(declare, rightFormula, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
+            rhoRightAutomaton = LDLfToAutomaton(declare, rightFormula, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
 
             /* [rho2]phi = !<rho2>!phi */
             automaton = complementDiamondFormula(rhoRightAutomaton, phiAutomaton);
 
+            /* [psi? ; rho2]phi = !psi || [rho2]phi */
             if (leftFormula instanceof RegExpTest) {
-                /* [psi ; rho2]phi = !psi || [rho2]phi */
                 Automaton rhoLeftComplement = new SinkComplete().transform(rhoLeftAutomaton);
                 rhoLeftComplement = new Complement<>().transform(rhoLeftComplement);
                 automaton = new Union<>().transform(rhoLeftComplement, automaton);
-            } else {
-                /* [rho1 ; rho2]phi = [rho1][rho2]phi (phi = [rho2]phi at this point) */
+            }
+            /* [rho1 ; rho2]phi = [rho1][rho2]phi = !<rho1>![rho2]phi (phi = [rho2]phi at this point) */
+            else {
                 automaton = complementDiamondFormula(rhoLeftAutomaton, automaton);
             }
 
@@ -126,14 +119,13 @@ public class CompAutomatonUtils {
 //                  automaton = CompAutomatonUtils.ldlf2AutomatonComp(declare, formula, ps, timeLimit);
                 automaton = new Reducer<>().transform(automaton);
         }
-
         /* [rho]phi = !<rho>!phi */
         else {
             /*
             Proceed with compositional algorithm
              */
 //                System.err.println("Using COMPOSITIONAL on " + formula);
-            rhoLeftAutomaton = regexpToAutomaton(declare, rho, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = complementDiamondFormula(rhoLeftAutomaton, phiAutomaton);
         }
@@ -154,30 +146,28 @@ public class CompAutomatonUtils {
         return automaton;
     }
 
-    private static Automaton diamondToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
+    private static Automaton diamondToAutomaton(boolean declare, LDLfDiamondFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
         Automaton rhoLeftAutomaton;
         Automaton rhoRightAutomaton;
         Automaton phiAutomaton;
 
-        LDLfTempOpTempFormula tFormula = (LDLfTempOpTempFormula) formula;
-        RegExp rho = tFormula.getRegExp();
-        LDLfFormula phi = tFormula.getGoalFormula();
+        RegExp rho = formula.getRegExp();
+        LDLfFormula phi = formula.getGoalFormula();
 
         /* <psi?>phi = psi && phi */
         if (rho instanceof RegExpTest) {
-            rhoLeftAutomaton = regexpToAutomaton(declare, rho, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
         }
-
         /* <rho1 ; rho2>phi = <rho1><rho2>phi */
         else if (rho instanceof RegExpConcat) {
             RegExp leftFormula = ((RegExpConcat) rho).getLeftFormula();
             RegExp rightFormula = ((RegExpConcat) rho).getRightFormula();
 
-            rhoLeftAutomaton = regexpToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
-            rhoRightAutomaton = regexpToAutomaton(declare, rightFormula, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
+            rhoRightAutomaton = LDLfToAutomaton(declare, rightFormula, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
 
             automaton = new Concatenation<>().transform(rhoRightAutomaton, phiAutomaton);
@@ -193,10 +183,7 @@ public class CompAutomatonUtils {
             }
 
         }
-
-        /*
-        If rho* with tests, use ldlf2nfa algorithm
-         */
+        /* If rho* with tests, use ldlf2nfa algorithm */
         else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
             /*
             Use top-down algorithm if star and has tests
@@ -204,48 +191,50 @@ public class CompAutomatonUtils {
             System.err.println("Using LDLF2DFA on " + formula);
 //                  timeLimit = System.currentTimeMillis() - timeStarted;
             automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
-//                  automaton = CompAutomatonUtils.ldlf2AutomatonComp(declare, formula, ps, timeLimit);
         }
-
+        /* <rho>phi */
         else {
             /*
             Proceed with compositional algorithm
              */
 //                System.err.println("Using COMPOSITIONAL on " + formula);
-            rhoLeftAutomaton = regexpToAutomaton(declare, rho, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
-//            automaton = compositionAutomatonFactory(formula.getFormulaType(), rho, rhoLeftAutomaton, phiAutomaton);
         }
 
         return automaton;
     }
 
-    private static Automaton binaryToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
+    private static Automaton binaryToAutomaton(boolean declare, BinaryFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
-        BinaryFormula bFormula = (BinaryFormula) formula;
-        LDLfFormula left = (LDLfFormula) bFormula.getLeftFormula();
-        LDLfFormula right = (LDLfFormula) bFormula.getRightFormula();
-        Automaton leftAutomaton = LDLfToAutomaton(declare, left, ps, timeStarted, timeLimit);
-        Automaton rightAutomaton = LDLfToAutomaton(declare, right, ps, timeStarted, timeLimit);
+        Automaton leftAutomaton = LDLfToAutomaton(declare, formula.getLeftFormula(), ps, timeStarted, timeLimit);
+        Automaton rightAutomaton = LDLfToAutomaton(declare, formula.getRightFormula(), ps, timeStarted, timeLimit);
 
         if (formula instanceof LDLfTempAndFormula) {
             automaton = new Mix<>().transform(leftAutomaton, rightAutomaton);
         } else if (formula instanceof LDLfTempOrFormula) {
             automaton = new Union<>().transform(leftAutomaton, rightAutomaton);
+        } else if (formula instanceof RegExpConcat) {
+            automaton = new Concatenation<>().transform(leftAutomaton, rightAutomaton);
         } else {
+            //RegExpAltern?
             throw new IllegalArgumentException("Illegal binary formula " + formula);
         }
-//        automaton = compositionAutomatonFactory(formula.getFormulaType(), null, leftAutomaton, rightAutomaton);
+
         return automaton;
     }
 
-    private static Automaton unaryToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
+    private static Automaton unaryToAutomaton(boolean declare, UnaryFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
-        UnaryFormula uFormula = (UnaryFormula) formula;
-        LDLfFormula nested = (LDLfFormula) uFormula.getNestedFormula();
-        automaton = LDLfToAutomaton(declare, nested, ps, timeStarted, timeLimit);
-//        automaton = compositionAutomatonFactory(formula.getFormulaType(), null, automaton, null);
+        automaton = LDLfToAutomaton(declare, formula.getNestedFormula(), ps, timeStarted, timeLimit);
+
+        if (formula instanceof RegExpStar) {
+            Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps, timeStarted, timeLimit);
+            automaton = new Concatenation<>().transform(automaton, end);
+            automaton = new Star<>().transform(automaton);
+        }
+
         return automaton;
     }
 
@@ -256,121 +245,7 @@ public class CompAutomatonUtils {
         return ldl;
     }
 
-    private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps) {
-        return regexpToAutomaton(declare, regExp, ps, System.currentTimeMillis(), Long.MAX_VALUE);
-    }
-
-//    private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps, long timeStarted, long timeLimit) {
-//        Automaton automaton;
-//
-//        /* Base case when expression is atomic proposition or local formula */
-//        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
-//            //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
-//            automaton = getElementaryAutomaton(regExp, ps);
-//            return automaton;
-//        } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
-//            // time limit reached
-//            return new Automaton();
-//        }
-//
-//        /* Else parse subformula */
-//        if (regExp instanceof UnaryFormula) {
-//            UnaryFormula uFormula = (UnaryFormula) regExp;
-//            Formula nested = uFormula.getNestedFormula();
-//
-//            if (nested instanceof RegExp) {
-//                automaton = regexpToAutomaton(declare, (RegExp) nested, ps, timeStarted, timeLimit);
-//            } else if (nested instanceof LDLfFormula) {
-//                //Special case when RegExpTest
-//                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps, timeStarted, timeLimit);
-//                return automaton; // do not send to compositionAutomatonFactory
-//            } else {
-//                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
-//            }
-//
-//            /* rho* = (<rho>end)* */
-//            if (regExp instanceof RegExpStar) {
-//                Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps, timeStarted, timeLimit);
-//                automaton = new Concatenation<>().transform(automaton, end);
-//                automaton = new Star<>().transform(automaton);
-////                automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, end);
-//            }
-//
-//            else {
-//                throw new IllegalArgumentException("Unknown regexp unary " + regExp);
-////                automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, null);
-//            }
-//        } else if (regExp instanceof BinaryFormula) {
-//            BinaryFormula bFormula = (BinaryFormula) regExp;
-//            RegExp left = (RegExp) bFormula.getLeftFormula();
-//            RegExp right = (RegExp) bFormula.getRightFormula();
-//            Automaton leftAutomaton = regexpToAutomaton(declare, left, ps, timeStarted, timeLimit);
-//            Automaton rightAutomaton = regexpToAutomaton(declare, right, ps, timeStarted, timeLimit);
-//            automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, leftAutomaton, rightAutomaton);
-//        } else {
-//            throw new IllegalArgumentException("Illegal regexp " + regExp);
-//        }
-//
-//        return automaton;
-//    }
-
-    private static Automaton regexpToAutomaton(boolean declare, RegExp regExp, PropositionalSignature ps, long timeStarted, long timeLimit) {
-        Automaton automaton;
-
-        /* Base case when expression is atomic proposition or local formula */
-        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
-            //RE_LOCAL_VAR, RE_LOCAL_TRUE, RE_LOCAL__FALSE
-            automaton = getElementaryAutomaton(regExp, ps);
-            return automaton;
-        } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
-            // time limit reached
-            return new Automaton();
-        }
-
-        /* Else parse subformula */
-        else if (regExp instanceof UnaryFormula) {
-            UnaryFormula uFormula = (UnaryFormula) regExp;
-            Formula nested = uFormula.getNestedFormula();
-
-            if (nested instanceof RegExp) {
-                automaton = regexpToAutomaton(declare, (RegExp) nested, ps, timeStarted, timeLimit);
-            } else if (nested instanceof LDLfFormula) {
-                //Special case when RegExpTest
-                automaton = LDLfToAutomaton(declare, (LDLfFormula) nested, ps, timeStarted, timeLimit);
-                return automaton; // do not send to compositionAutomatonFactory
-            } else {
-                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
-            }
-
-            if (regExp instanceof RegExpStar) {
-                /* rho* = (<rho>end)* */
-                Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps, timeStarted, timeLimit);
-                automaton = new Concatenation<>().transform(automaton, end);
-                automaton = new Star<>().transform(automaton);
-//                automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, automaton, end);
-            }
-        } else if (regExp instanceof BinaryFormula) {
-            BinaryFormula bFormula = (BinaryFormula) regExp;
-            RegExp left = (RegExp) bFormula.getLeftFormula();
-            RegExp right = (RegExp) bFormula.getRightFormula();
-            Automaton leftAutomaton = regexpToAutomaton(declare, left, ps, timeStarted, timeLimit);
-            Automaton rightAutomaton = regexpToAutomaton(declare, right, ps, timeStarted, timeLimit);
-
-            if (regExp instanceof RegExpConcat) {
-                automaton = new Concatenation<>().transform(leftAutomaton, rightAutomaton);
-            } else {
-                throw new IllegalArgumentException("Unknown regexp binary " + regExp);
-            }
-//            automaton = compositionAutomatonFactory(regExp.getFormulaType(), null, leftAutomaton, rightAutomaton);
-        } else {
-            throw new IllegalArgumentException("Illegal regexp " + regExp);
-        }
-
-        automaton = new Reducer<>().transform(automaton);
-        return automaton;
-    }
-
-    public static boolean hasTests(Formula formula) {
+   public static boolean hasTests(Formula formula) {
         if (formula instanceof LDLfTempOpTempFormula) {
             LDLfTempOpTempFormula tempLdlf = (LDLfTempOpTempFormula) formula;
             return (checkRegExpHasTest(tempLdlf.getRegExp()));
@@ -413,64 +288,6 @@ public class CompAutomatonUtils {
         return hasTest;
     }
 
-    public static Automaton compositionAutomatonFactory(FormulaType type, RegExp nested, Automaton left, Automaton right) {
-        Automaton compAutomaton;
-
-        switch (type) {
-            case LDLf_TEMP_AND:
-                compAutomaton = new Mix<>().transform(left, right);
-                break;
-
-            case LDLf_TEMP_OR:
-                compAutomaton = new Union<>().transform(left, right);
-                break;
-
-            case LDLf_BOX:
-                if (new isEmpty<>().test(left)) {
-                    compAutomaton = left; //.clone();
-                } else {
-                    Automaton compRight = new Complement<>().transform(right);
-                    compAutomaton = new Concatenation<>().transform(left, compRight);
-                    compAutomaton = new Reducer<>().transform(compAutomaton);
-                    compAutomaton = new SinkComplete().transform(compAutomaton);
-                }
-                compAutomaton = new Complement<>().transform(compAutomaton);
-                break;
-
-            case RE_CONCAT: // More needed?
-            case LDLf_DIAMOND:
-                if (new isEmpty<>().test(left)) {
-                    compAutomaton = left; // .clone();
-                } else {
-                    compAutomaton = new Concatenation<>().transform(left, right);
-                    /*
-                    To prevent reduction to empty automaton
-                     */
-                    if (new isEmpty<>().test(compAutomaton)) {
-                        compAutomaton = right; //.clone();
-                    }
-                }
-                break;
-
-            case RE_STAR:
-                if (new isEmpty<>().test(left)) {
-                    compAutomaton = left; //.clone();
-                } else {
-                    compAutomaton = new Concatenation<>().transform(left, right);
-                }
-
-                compAutomaton = new Star<>().transform(compAutomaton);
-                break;
-
-            default:
-                throw new IllegalArgumentException("Not implemented yet: " + type);
-        }
-
-        compAutomaton = new Reducer<>().transform(compAutomaton);
-
-        return compAutomaton;
-    }
-
     public static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
         Automaton automaton;
         State initialState;
@@ -487,11 +304,7 @@ public class CompAutomatonUtils {
         } else if (formula instanceof LDLfffFormula) {
             initialState = automaton.addState(true, false);
             addLoopingTransitions(labels, initialState, initialState, automaton);
-        }  else {
-            if (!(formula instanceof RegExpLocal)) {
-                throw new IllegalArgumentException("Formula is not a RegExpLocal: " + formula.getFormulaType());
-            }
-
+        }  else if (formula instanceof RegExpLocal){
             initialState = automaton.addState(true, false);
             endState = automaton.addState(false, true);
             falseState = automaton.addState(false, false);
@@ -500,6 +313,7 @@ public class CompAutomatonUtils {
 
             for (PossibleWorld label : labels) {
                 Transition<PossibleWorld> transition;
+
                 if (label.satisfies(propFormula)) {
                     transition = new Transition<>(initialState, label, endState);
                 } else {
@@ -512,6 +326,8 @@ public class CompAutomatonUtils {
                     e.printStackTrace();
                 }
             }
+        } else {
+            throw new IllegalArgumentException("Illegal elementary formula: " + formula);
         }
 
         automaton = new Reducer<>().transform(automaton);
