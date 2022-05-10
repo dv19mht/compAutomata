@@ -5,9 +5,8 @@ import formula.ltlf.LTLfFormula;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import rationals.Automaton;
+import rationals.properties.ModelCheck;
 import rationals.properties.isEmpty;
-import rationals.transformations.Reducer;
-import rationals.transformations.SinkComplete;
 import utils.CompAutomatonUtils;
 import utils.RandomFormulaGenerator;
 
@@ -16,38 +15,63 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Random;
 
+// 25 26 100 293s FG
+
 public class RandomFormulaExperiment {
 
     public static void main(String[] args) {
         try (PrintWriter resultPrinter = new PrintWriter("rand_form.txt")){
-            int length = Integer.parseInt(args[0]);
+            int lengths = Integer.parseInt(args[0]);
             int nProps = Integer.parseInt(args[1]);
             long timeLimit = Integer.parseInt(args[2]) * 1000L;
+            long totalTimeStarted = System.currentTimeMillis();
             Random random = new Random();
+            int nFormulaGenerated = 0;
+            int nFormulaVerified = 0;
 
             resultPrinter.println("algorithm;form_length;n_propositions;total_time;states;transitions;empty;formula");
-            for(int num = 5; num <= length; num += 5) {
-                for (int numProps = nProps; numProps <= nProps; numProps++) {
-                    String temp;
-                    random.setSeed(num);
-                    RandomFormulaGenerator generator = new RandomFormulaGenerator(random);
+            for(int len = 5; len <= lengths; len += 5) {
+                for (int i = 0; i < 10; i++) { // number of formulas for each L (formula length)
+                    for (int numProps = nProps; numProps <= nProps; numProps++) {
+                        ExperimentResultWrapper ldlf2nfaResult;
+                        ExperimentResultWrapper cldlfResult;
+                        random.setSeed(len + i);
+                        RandomFormulaGenerator generator = new RandomFormulaGenerator(random);
 
-                    List<Proposition> props = RandomFormulaGenerator.createPropositionList(nProps);
-//                    LTLfFormula ltl = generator.getRandomFormula(props, num, (double) 1 / 3);
-                    LTLfFormula ltl = generator.getRandomFormulaForG(props, num, (double) 1 / 2);
+                        List<Proposition> props = RandomFormulaGenerator.createPropositionList(nProps);
+                        LTLfFormula ltl = generator.getRandomFormula(props, len, (double) 1 / 3);
+//                        LTLfFormula ltl = generator.getRandomFormulaForG(props, len, (double) 1 / 3);
 
-                    temp = ldlf2dfaGeneration(num, numProps, props, ltl, timeLimit);
-                    resultPrinter.println(temp);
-                    System.out.println();
+                        ldlf2nfaResult = ldlf2dfaGeneration(len, numProps, props, ltl, timeLimit);
+                        resultPrinter.println(ldlf2nfaResult.getResults());
+                        System.out.println();
 
-                    temp = compositionalGeneration(num, numProps, props, ltl, timeLimit);
-                    resultPrinter.println(temp);
-                    System.out.println();
+                        cldlfResult = compositionalGeneration(len, numProps, props, ltl, timeLimit);
+                        resultPrinter.println(cldlfResult.getResults());
+                        System.out.println();
 
-                    System.out.println("--------------------");
-                    System.out.println();
+                        ModelCheck modelCheck = new ModelCheck<>();
+                        Automaton ldlf2nfa = ldlf2nfaResult.getAutomaton();
+                        Automaton cldlf = cldlfResult.getAutomaton();
+
+                        if (modelCheck.test(ldlf2nfaResult.getAutomaton(), cldlfResult.getAutomaton()) &&
+                                (bothEmpty(ldlf2nfa, cldlf) || bothNotEmpty(ldlf2nfa, cldlf))) {
+                            System.out.println("Formula OK " + ltl);
+                            nFormulaVerified++;
+                        } else {
+                            System.out.println("Formula NOT OK " + ltl);
+                            System.out.println(modelCheck.counterExamples());
+                            System.exit(1);
+                        }
+                        nFormulaGenerated++;
+
+                        System.out.println("--------------------");
+                        System.out.println();
+                    }
                 }
             }
+            System.out.println("Total test time was " + (System.currentTimeMillis() - totalTimeStarted));
+            System.out.println("Verified formula " + nFormulaVerified + "/" + nFormulaGenerated);
         }
         catch (NumberFormatException | FileNotFoundException exception) {
             System.out.println("Invalid input format. " +
@@ -56,11 +80,20 @@ public class RandomFormulaExperiment {
         }
     }
 
-    public static String ldlf2dfaGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
+    private static boolean bothNotEmpty(Automaton ldlf2nfa, Automaton cldlf) {
+        return !(new isEmpty<>().test(ldlf2nfa)) && !(new isEmpty<>().test(cldlf));
+    }
+
+    private static boolean bothEmpty(Automaton ldlf2nfa, Automaton cldlf) {
+        return new isEmpty<>().test(ldlf2nfa) && new isEmpty<>().test(cldlf);
+    }
+
+    public static ExperimentResultWrapper ldlf2dfaGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
         boolean minimize = true;
         boolean trim = false;
         boolean printing = false;
+        ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
 
         PropositionalSignature signature = new PropositionalSignature();
         signature.addAll(props);
@@ -70,16 +103,21 @@ public class RandomFormulaExperiment {
         Automaton mainAutomaton = mainAutomatonWrapper.getAutomaton();
         long elapsedTime = System.currentTimeMillis() - startTime;
 
-        mainAutomaton = new Reducer<>().transform(mainAutomaton);
+//        mainAutomaton = new Reducer<>().transform(mainAutomaton);
 
         printResults(fLength, nProps, mainAutomaton, elapsedTime, "ldlf2nfa");
         boolean empty = new isEmpty<>().test(mainAutomaton);
 
-        return "ldlf2nfa;" + fLength + ";" + nProps + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size() + ";" + empty + ";" + formula;
+        resultWrapper.setResults("ldlf2nfa;" + fLength + ";" + nProps + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size() + ";" + empty + ";" + formula);
+        resultWrapper.setAutomaton(mainAutomaton);
+        resultWrapper.setInputFormula(formula.toString());
+
+        return resultWrapper;
     }
 
-    public static String compositionalGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
+    public static ExperimentResultWrapper compositionalGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
+        ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
 
         PropositionalSignature signature = new PropositionalSignature();
         signature.addAll(props);
@@ -90,12 +128,16 @@ public class RandomFormulaExperiment {
         Automaton mainAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, ldl, signature, startTime, timeLimit);
         long elapsedTime = System.currentTimeMillis() - startTime;
 
-        mainAutomaton = new SinkComplete().transform(mainAutomaton);
+//        mainAutomaton = new SinkComplete().transform(mainAutomaton);
 
         printResults(fLength, nProps, mainAutomaton, elapsedTime, "C-LDLf");
         boolean empty = new isEmpty<>().test(mainAutomaton);
 
-        return "C-LDLf;" + fLength + ";" + nProps + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size() + ";" + empty + ";" + formula;
+        resultWrapper.setResults("C-LDLf;" + fLength + ";" + nProps + ";" + elapsedTime + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size() + ";" + empty + ";" + formula);
+        resultWrapper.setAutomaton(mainAutomaton);
+        resultWrapper.setInputFormula(formula.toString());
+
+        return resultWrapper;
     }
 
     private static void printResults(int length, int nProps, Automaton mainAutomaton, long elapsedTime, String type) {
