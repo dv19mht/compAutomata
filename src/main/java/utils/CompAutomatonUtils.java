@@ -108,12 +108,13 @@ public class CompAutomatonUtils {
 
         /* If rho* with tests, use ldlf2nfa algorithm */
         else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
-                /*
-                Use top-down algorithm if star and has tests
-                 */
-//                System.out.println("Using LDLF2DFA on " + formula);
-//                automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
-                  automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
+            /*
+            Use top-down algorithm if star and has tests
+             */
+//            System.out.println("Using LDLF2DFA on " + formula);
+//            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
+            automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
+//            System.out.println("states: " + automaton.states().size());
         }
         /* [rho]phi = !<rho>!phi */
         else {
@@ -141,6 +142,8 @@ public class CompAutomatonUtils {
         if (rho instanceof RegExpTest) {
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
+            rhoLeftAutomaton = new SinkComplete().transform(rhoLeftAutomaton);
+            phiAutomaton = new SinkComplete().transform(phiAutomaton);
             automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
         }
         /* <rho1 ; rho2>phi = <rho1><rho2>phi */
@@ -159,6 +162,8 @@ public class CompAutomatonUtils {
             phiAutomaton = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
 
             if (leftFormula instanceof RegExpTest) {
+                rhoLeftAutomaton = new SinkComplete().transform(rhoLeftAutomaton);
+                phiAutomaton = new SinkComplete().transform(phiAutomaton);
                 automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
             } else {
                 automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
@@ -173,6 +178,7 @@ public class CompAutomatonUtils {
 //            System.out.println("Using LDLF2DFA on " + formula);
 //            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
             automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
+//            System.out.println("states: " + automaton.states().size());
         }
         /* <rho>phi */
         else {
@@ -207,13 +213,16 @@ public class CompAutomatonUtils {
         Automaton rightAutomaton = LDLfToAutomaton(declare, formula.getRightFormula(), ps, timeStarted, timeLimit);
 
         if (formula instanceof LDLfTempAndFormula) {
+            leftAutomaton = new SinkComplete().transform(leftAutomaton);
+            rightAutomaton = new SinkComplete().transform(rightAutomaton);
             automaton = new Mix<>().transform(leftAutomaton, rightAutomaton);
         } else if (formula instanceof LDLfTempOrFormula) {
             automaton = new Union<>().transform(leftAutomaton, rightAutomaton);
-        } else if (formula instanceof RegExpConcat) {
-            automaton = new Concatenation<>().transform(leftAutomaton, rightAutomaton);
+//        } else if (formula instanceof RegExpConcat) {
+//            automaton = new Concatenation<>().transform(leftAutomaton, rightAutomaton);
         } else {
             //RegExpAltern?
+            //RegExpConCat?
             throw new IllegalArgumentException("Illegal binary formula " + formula);
         }
 
