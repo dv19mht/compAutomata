@@ -6,6 +6,11 @@ public class ExperimentResultWrapper {
     private String inputFormula;
     private String results;
     private Automaton automaton;
+    private long timeSpent;
+
+    public void setTimeSpent(long timeSpent) {
+        this.timeSpent = timeSpent;
+    }
 
     public void setInputFormula(String inputFormula) {
         this.inputFormula = inputFormula;
@@ -29,5 +34,9 @@ public class ExperimentResultWrapper {
 
     public String getResults() {
         return results;
+    }
+
+    public long getTimeSpent() {
+        return timeSpent;
     }
 }
