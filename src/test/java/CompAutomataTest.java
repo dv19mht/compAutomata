@@ -17,6 +17,52 @@ import static org.junit.Assert.assertTrue;
 
 public class CompAutomataTest {
 
+    @Test
+    public void specialFormulaTest() {
+        boolean declare = true;
+        PropositionalSignature ps;
+        LTLfFormula ltLfFormula;
+        LDLfFormula ldlfFormula;
+
+        //[*((?(<*((?(<a>(tt))) ; (true))>((<(a) AND (b)>(tt)) TeAND (<true>(tt))))) ; (true))](([c](ff)) TeOR ([true](ff)))
+//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff)))", declare, ps);
+
+        //<*((?(<NOT(b)>(tt))) ; (true))>((<true>((<b>(tt)) TeAND (<true>(tt)))) TeAND (<true>(tt)))
+//        compareAutomataOnLDL("<(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
+
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!((a) U ((a) && (b)))) R (!(c))) && ((!(b)) U (X(b)))");
+//        ps = ltLfFormula.getSignature();
+//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff))) && <(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
+
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))");
+//        ps = ltLfFormula.getSignature();
+//        compareAutomataOnLTL("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))", declare, ps);
+
+        // formula below actually takes much longer for c-ldlf (due to stripping of the last TeAND (b) )
+        //((TeNOT(TeNOT(TeNOT(((((NOT(a)) U (c)) U (X((NOT(c)) R (a)))) TeAND (X(a))) TeOR (((X(b)) R (X(c))) TeOR (a)))))) U ((b) U (b))) TeAND (b)
+        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)");
+        ldlfFormula = ltLfFormula.toLDLf();
+        ps = ltLfFormula.getSignature();
+        long timeStarted = System.currentTimeMillis();
+        Automaton a1 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+        long timeElapsed = System.currentTimeMillis() - timeStarted;
+        System.out.println("formula with (&& b): " + timeElapsed);
+
+        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b)))"); // no && (b) at the end
+        ldlfFormula = ltLfFormula.toLDLf();
+        ps = ltLfFormula.getSignature();
+        timeStarted = System.currentTimeMillis();
+        Automaton a2 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+        timeElapsed = System.currentTimeMillis() - timeStarted;
+        System.out.println("formula NOT (&& b): " + timeElapsed);
+
+//        compareAutomataOnLTLTime("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)", declare, ps);
+
+        //((a) U (X(i))) TeAND (X(X((X(((i) TeOR (h)) R (j))) TeAND (h))))
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))");
+//        ps = ltLfFormula.getSignature();
+//        compareAutomataOnLTL("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))", declare, ps);
+    }
 
     @Test
     public void ldlf2nfaCompTest() {
@@ -56,19 +102,7 @@ public class CompAutomataTest {
 
 //        compareAutomataOnLTL("((!(b)) U (X(b)))", declare, ps);
 
-        //[*((?(<*((?(<a>(tt))) ; (true))>((<(a) AND (b)>(tt)) TeAND (<true>(tt))))) ; (true))](([c](ff)) TeOR ([true](ff)))
-//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff)))", declare, ps);
 
-        //<*((?(<NOT(b)>(tt))) ; (true))>((<true>((<b>(tt)) TeAND (<true>(tt)))) TeAND (<true>(tt)))
-//        compareAutomataOnLDL("<(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
-
-//        ltLfFormula = ParserUtils.parseLTLfFormula("((!((a) U ((a) && (b)))) R (!(c))) && ((!(b)) U (X(b)))");
-//        ps = ltLfFormula.getSignature();
-//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff))) && <(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
-
-        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))");
-        ps = ltLfFormula.getSignature();
-        compareAutomataOnLTL("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))", declare, ps);
     }
 
     @Test
@@ -271,6 +305,37 @@ public class CompAutomataTest {
             System.out.println("Formula NOT OK");
             printComparison(ldlf2dfa, comp, ldlfFormula);
         }
+    }
+
+    private void compareAutomataOnLTLTime(String input, boolean declare, PropositionalSignature ps) {
+        LTLfFormula ltlfFormula = ParserUtils.parseLTLfFormula(input);
+        LDLfFormula ldlfFormula = ltlfFormula.toLDLf();
+        ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
+
+//        try {
+//            Thread.sleep(3000);
+//        } catch (InterruptedException e) {}
+
+        long compStart = System.currentTimeMillis();
+        Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, ldlfFormula, ps);
+        comp = new Reducer<>().transform(comp);
+        long compElapsed = System.currentTimeMillis() - compStart;
+
+        long ldlf2nfaStart = System.currentTimeMillis();
+        Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+        System.out.println("states: " + ldlf2dfa.states().size());
+        ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
+        long ldlf2nfaElapsed = System.currentTimeMillis() - ldlf2nfaStart;
+
+        if (new ModelCheck<>().test(ldlf2dfa, comp) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
+            System.out.println("Formula: " + ldlfFormula + " was OK");
+        } else {
+            System.out.println("Formula NOT OK");
+            printComparison(ldlf2dfa, comp, ldlfFormula);
+        }
+
+        System.out.println("Time comp: " + compElapsed);
+        System.out.println("Time ldlf2nfa: " + ldlf2nfaElapsed);
     }
 
     private void compareAutomataOnLDL(String input, boolean declare, PropositionalSignature ps) {
