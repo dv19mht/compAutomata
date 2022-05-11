@@ -509,22 +509,25 @@ public class CompAutomatonUtils {
              */
             Set<QuotedVar> formulaSet = currentState.getFormulaSet();
             LDLfFormula conjunctFormula;
+            boolean hasTestWithinStar;
 
             Iterator<QuotedVar> i1 = formulaSet.iterator();
 
             if (formulaSet.size() > 0) {
                 conjunctFormula = i1.next().getUnquotedFormula();
+                hasTestWithinStar = hasTestsWithinStar(conjunctFormula);
             } else {
                 throw new IllegalArgumentException("The set of quoted formula cannot be empty!");
             }
 
-            while (i1.hasNext()) {
+            while (i1.hasNext() && !hasTestWithinStar) {
                 LDLfFormula varForm = i1.next().getUnquotedFormula();
+                hasTestWithinStar = hasTestsWithinStar(varForm);
                 conjunctFormula = new LDLfTempAndFormula(conjunctFormula, varForm);
             }
 
             /* if no tests within star do C-LDLf */
-            if (!hasTestsWithinStar(conjunctFormula)) {
+            if (!hasTestWithinStar) {
 //                System.out.println("Creating C-LDLf automaton from " + conjunctFormula);
                 Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctFormula, ps, timeStarted, timeLimit);
                 connectAutomatons(automaton, comp, currentState);
