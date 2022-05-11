@@ -5,6 +5,8 @@ import formula.ldlf.LDLfTempAndFormula;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import rationals.Automaton;
+import rationals.properties.ModelCheck;
+import rationals.properties.isEmpty;
 import rationals.transformations.Mix;
 import rationals.transformations.Reducer;
 import utils.AutomatonUtils;
@@ -22,22 +24,35 @@ public class PracticalValidityExperiment {
             int input = Integer.parseInt(args[0]);
             resultPrinter.println("Algorithm;Constraints;total_time;constraint_time;states;transitions");
             for(int num = 1; num <= input; num++) {
-                String temp;
+                ExperimentResultWrapper ldlf2nfaResult;
+                ExperimentResultWrapper cldlfResult;
 
-                temp = ldlf2dfaGeneration(num);
-                resultPrinter.println(temp);
+                ldlf2nfaResult = ldlf2dfaGeneration(num);
+                resultPrinter.println(ldlf2nfaResult.getResults());
                 System.out.println();
 
 //                ldlf2dfaGenerationAlt(num);
 //                System.out.println();
 
-                temp = compositionalGeneration(num);
-                resultPrinter.println(temp);
+                cldlfResult = compositionalGeneration(num);
+                resultPrinter.println(cldlfResult.getResults());
                 System.out.println();
 
 //                temp = compositionalQueueGeneration(num);
 //                resultPrinter.println(temp);
 //                System.out.println();
+
+                ModelCheck modelCheck = new ModelCheck<>();
+                Automaton ldlf2nfa = ldlf2nfaResult.getAutomaton();
+                Automaton cldlf = cldlfResult.getAutomaton();
+
+                if (modelCheck.test(ldlf2nfa, cldlf) && (bothEmpty(ldlf2nfa, cldlf) || bothNotEmpty(ldlf2nfa, cldlf))) {
+                    System.out.println("Formula OK ");
+                } else {
+                    System.out.println("Formula NOT OK ");
+                    System.out.println(modelCheck.counterExamples());
+                    System.exit(1);
+                }
 
                 System.out.println("--------------------");
                 System.out.println();
@@ -49,11 +64,12 @@ public class PracticalValidityExperiment {
 
     }
 
-    public static String ldlf2dfaGeneration(int num) {
+    public static ExperimentResultWrapper ldlf2dfaGeneration(int num) {
         boolean declare = true;
         boolean minimize = true;
         boolean trim = false;
         boolean printing = false;
+        ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
 
         PropositionalSignature signature = generateSignatureInc(num);
 
@@ -91,7 +107,11 @@ public class PracticalValidityExperiment {
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
 
-        return "ldlf2nfa;" + num + ";" + elapsedTime + ";" + timeConstraints + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
+        resultWrapper.setResults("ldlf2nfa;" + num + ";" + elapsedTime + ";" + timeConstraints + ";" + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size());
+        resultWrapper.setAutomaton(mainAutomaton);
+        resultWrapper.setTimeSpent(elapsedTime);
+
+        return resultWrapper;
     }
 
     //Conjunction of formulae before automaton creation
@@ -129,8 +149,9 @@ public class PracticalValidityExperiment {
         return mainAutomaton;
     }
 
-    public static String compositionalGeneration(int num) {
+    public static ExperimentResultWrapper compositionalGeneration(int num) {
         boolean declare = true;
+        ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
 
         PropositionalSignature signature = generateSignatureInc(num);
 
@@ -173,7 +194,12 @@ public class PracticalValidityExperiment {
 //        List<String> uncomplLog = generateUncompliantLogInc(num);
 //        //System.out.println(uncomplLog);
 //        runTrace(mainAutomaton, uncomplLog);
-        return "C-LDLf;" + num + ";" + elapsedTime + ";" + timeConstraints + ";"  + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size();
+
+        resultWrapper.setResults("C-LDLf;" + num + ";" + elapsedTime + ";" + timeConstraints + ";"  + mainAutomaton.states().size() + ";" + mainAutomaton.delta().size());
+        resultWrapper.setAutomaton(mainAutomaton);
+        resultWrapper.setTimeSpent(elapsedTime);
+
+        return resultWrapper;
     }
 
     /* Uses a priority queue to combine automata */
@@ -296,5 +322,13 @@ public class PracticalValidityExperiment {
 
         //System.out.println(constraints[currConstraint]);
         return constraints[currConstraint];
+    }
+
+    private static boolean bothNotEmpty(Automaton ldlf2nfa, Automaton cldlf) {
+        return !(new isEmpty<>().test(ldlf2nfa)) && !(new isEmpty<>().test(cldlf));
+    }
+
+    private static boolean bothEmpty(Automaton ldlf2nfa, Automaton cldlf) {
+        return new isEmpty<>().test(ldlf2nfa) && new isEmpty<>().test(cldlf);
     }
 }
