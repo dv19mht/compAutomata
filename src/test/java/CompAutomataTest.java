@@ -38,30 +38,30 @@ public class CompAutomataTest {
 //        ps = ltLfFormula.getSignature();
 //        compareAutomataOnLTL("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))", declare, ps);
 
-        // formula below actually takes much longer for c-ldlf (due to stripping of the last TeAND (b) )
-        //((TeNOT(TeNOT(TeNOT(((((NOT(a)) U (c)) U (X((NOT(c)) R (a)))) TeAND (X(a))) TeOR (((X(b)) R (X(c))) TeOR (a)))))) U ((b) U (b))) TeAND (b)
-        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)");
-        ldlfFormula = ltLfFormula.toLDLf();
-        ps = ltLfFormula.getSignature();
-        long timeStarted = System.currentTimeMillis();
-        Automaton a1 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
-        long timeElapsed = System.currentTimeMillis() - timeStarted;
-        System.out.println("formula with (&& b): " + timeElapsed);
-
-        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b)))"); // no && (b) at the end
-        ldlfFormula = ltLfFormula.toLDLf();
-        ps = ltLfFormula.getSignature();
-        timeStarted = System.currentTimeMillis();
-        Automaton a2 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
-        timeElapsed = System.currentTimeMillis() - timeStarted;
-        System.out.println("formula NOT (&& b): " + timeElapsed);
+//        // formula below actually takes much longer for c-ldlf (due to stripping of the last TeAND (b) )
+//        //((TeNOT(TeNOT(TeNOT(((((NOT(a)) U (c)) U (X((NOT(c)) R (a)))) TeAND (X(a))) TeOR (((X(b)) R (X(c))) TeOR (a)))))) U ((b) U (b))) TeAND (b)
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)");
+//        ldlfFormula = ltLfFormula.toLDLf();
+//        ps = ltLfFormula.getSignature();
+//        long timeStarted = System.currentTimeMillis();
+//        Automaton a1 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+//        long timeElapsed = System.currentTimeMillis() - timeStarted;
+//        System.out.println("formula with (&& b): " + timeElapsed);
+//
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b)))"); // no && (b) at the end
+//        ldlfFormula = ltLfFormula.toLDLf();
+//        ps = ltLfFormula.getSignature();
+//        timeStarted = System.currentTimeMillis();
+//        Automaton a2 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+//        timeElapsed = System.currentTimeMillis() - timeStarted;
+//        System.out.println("formula wo (&& b): " + timeElapsed);
 
 //        compareAutomataOnLTLTime("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)", declare, ps);
 
         //((a) U (X(i))) TeAND (X(X((X(((i) TeOR (h)) R (j))) TeAND (h))))
-//        ltLfFormula = ParserUtils.parseLTLfFormula("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))");
-//        ps = ltLfFormula.getSignature();
-//        compareAutomataOnLTL("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))", declare, ps);
+        ltLfFormula = ParserUtils.parseLTLfFormula("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))");
+        ps = ltLfFormula.getSignature();
+        compareAutomataOnLTL("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))", declare, ps);
     }
 
     @Test
