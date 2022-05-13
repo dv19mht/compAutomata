@@ -56,6 +56,7 @@ public class CompAutomatonUtils {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
 
+        automaton = new SinkComplete().transform(automaton);
         automaton = new Reducer<>().transform(automaton);
 
         return automaton;
@@ -74,8 +75,7 @@ public class CompAutomatonUtils {
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
 
-            Automaton rhoComplement = new SinkComplete().transform(rhoLeftAutomaton);
-            rhoComplement = new Complement<>().transform(rhoComplement);
+            Automaton rhoComplement = new Complement<>().transform(rhoLeftAutomaton);
             automaton = new Union<>().transform(rhoComplement, phiAutomaton);
         }
         /* [rho1 ; rho2]phi = [rho1][rho2]phi */
@@ -95,8 +95,7 @@ public class CompAutomatonUtils {
 
             /* [psi? ; rho2]phi = !psi || [rho2]phi */
             if (leftFormula instanceof RegExpTest) {
-                Automaton rhoLeftComplement = new SinkComplete().transform(rhoLeftAutomaton);
-                rhoLeftComplement = new Complement<>().transform(rhoLeftComplement);
+                Automaton rhoLeftComplement = new Complement<>().transform(rhoLeftAutomaton);
                 automaton = new Union<>().transform(rhoLeftComplement, phiAutomaton);
             }
             /* [rho1 ; rho2]phi = [rho1][rho2]phi = !<rho1>![rho2]phi (phi = [rho2]phi at this point) */
@@ -114,14 +113,13 @@ public class CompAutomatonUtils {
 //            System.out.println("Using LDLF2DFA on " + formula);
 //            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
             automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
-//            System.out.println("states: " + automaton.states().size());
         }
         /* [rho]phi = !<rho>!phi */
         else {
             /*
             Proceed with compositional algorithm
              */
-//                System.err.println("Using COMPOSITIONAL on " + formula);
+//            System.err.println("Using COMPOSITIONAL on " + formula);
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = complementDiamondFormula(rhoLeftAutomaton, phiAutomaton);
@@ -142,8 +140,6 @@ public class CompAutomatonUtils {
         if (rho instanceof RegExpTest) {
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
-            rhoLeftAutomaton = new SinkComplete().transform(rhoLeftAutomaton);
-            phiAutomaton = new SinkComplete().transform(phiAutomaton);
             automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
         }
         /* <rho1 ; rho2>phi = <rho1><rho2>phi */
@@ -162,8 +158,6 @@ public class CompAutomatonUtils {
             phiAutomaton = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
 
             if (leftFormula instanceof RegExpTest) {
-                rhoLeftAutomaton = new SinkComplete().transform(rhoLeftAutomaton);
-                phiAutomaton = new SinkComplete().transform(phiAutomaton);
                 automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
             } else {
                 automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
@@ -178,14 +172,13 @@ public class CompAutomatonUtils {
 //            System.out.println("Using LDLF2DFA on " + formula);
 //            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
             automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
-//            System.out.println("states: " + automaton.states().size());
         }
         /* <rho>phi */
         else {
             /*
             Proceed with compositional algorithm
              */
-//                System.err.println("Using COMPOSITIONAL on " + formula);
+//            System.err.println("Using COMPOSITIONAL on " + formula);
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
@@ -197,8 +190,7 @@ public class CompAutomatonUtils {
     private static Automaton complementDiamondFormula(Automaton rho, Automaton phi) {
         Automaton automaton;
 
-        Automaton phiComplement = new SinkComplete().transform(phi);
-        phiComplement = new Complement<>().transform(phiComplement);
+        Automaton phiComplement = new Complement<>().transform(phi);
         automaton = new Concatenation<>().transform(rho, phiComplement);
         automaton = new Reducer<>().transform(automaton);
         automaton = new SinkComplete().transform(automaton);
@@ -213,8 +205,6 @@ public class CompAutomatonUtils {
         Automaton rightAutomaton = LDLfToAutomaton(declare, formula.getRightFormula(), ps, timeStarted, timeLimit);
 
         if (formula instanceof LDLfTempAndFormula) {
-            leftAutomaton = new SinkComplete().transform(leftAutomaton);
-            rightAutomaton = new SinkComplete().transform(rightAutomaton);
             automaton = new Mix<>().transform(leftAutomaton, rightAutomaton);
         } else if (formula instanceof LDLfTempOrFormula) {
             automaton = new Union<>().transform(leftAutomaton, rightAutomaton);
@@ -377,6 +367,7 @@ public class CompAutomatonUtils {
             throw new IllegalArgumentException("Illegal elementary formula: " + formula);
         }
 
+        automaton = new SinkComplete().transform(automaton);
         automaton = new Reducer<>().transform(automaton);
 
         return automaton;
@@ -537,7 +528,7 @@ public class CompAutomatonUtils {
 
                 // For each possible label, call the delta function on currentFormula
                 for (PossibleWorld label : allLabels) {
-                    // Hack, all labels are PossibleWorldWraps which implement TransitionLabel
+                    // Hack, all labels are PossibleWorldWrap which implement TransitionLabel
                     QuotedFormula deltaResult = currentFormula.delta((TransitionLabel) label);
 
                     // Compute the minimal interpretations satisfying deltaResult, that is, all the q'
