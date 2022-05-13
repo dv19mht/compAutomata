@@ -39,7 +39,7 @@ public class CompAutomatonUtils {
             automaton = getElementaryAutomaton(formula, ps);
             return automaton;
         } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
-            // time limit reached
+            // time out
             return new Automaton();
         }
 
@@ -106,7 +106,8 @@ public class CompAutomatonUtils {
         }
 
         /* If rho* with tests, use ldlf2nfa algorithm */
-        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
+//        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
+        else if (rho instanceof RegExpStar && checkForTestWithinStar(rho)) {
             /*
             Use top-down algorithm if star and has tests
              */
@@ -165,7 +166,8 @@ public class CompAutomatonUtils {
 
         }
         /* If rho* with tests, use ldlf2nfa algorithm */
-        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
+//        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
+        else if (rho instanceof RegExpStar && checkForTestWithinStar(rho)) {
             /*
             Use top-down algorithm if star and has tests
              */
@@ -239,87 +241,48 @@ public class CompAutomatonUtils {
         return ldl;
     }
 
-   public static boolean hasTestsWithinStar(Formula formula) {
-        boolean hasTests;
-
-        if (formula instanceof LDLfTempOpTempFormula) {
-            LDLfTempOpTempFormula tempLdlf = (LDLfTempOpTempFormula) formula;
-            return (checkRegExpHasTestWithinStar(tempLdlf.getRegExp()));
-        } else if (formula instanceof LDLfBinaryFormula) {
-            hasTests = hasTestsWithinStar(((LDLfBinaryFormula) formula).getLeftFormula());
-            if (!hasTests) {
-                hasTests = hasTestsWithinStar(((LDLfBinaryFormula) formula).getRightFormula());
-            }
-        } else {
-            return false;
-        }
-
-        return hasTests;
+    /*
+     * Only tested on nnf-LDLfFormula
+     */
+    public static boolean checkForTestWithinStar(Formula formula) {
+        return checkForTestWithinStar(formula, false);
     }
 
-    public static boolean checkRegExpHasTest(RegExp regExp) {
+    private static boolean checkForTestWithinStar(Formula formula, boolean hasStar) {
         boolean hasTest;
+        Formula nestedLeft;
+        Formula nestedRight;
 
-        /* Base case when expression is a test formula or atomic / local */
-        if (regExp instanceof RegExpTest) {
+        /* base case when atomic, local or test and hasStar */
+        if (formula instanceof AtomicFormula || formula instanceof LocalFormula) {
+            return false;
+        } else if (formula instanceof RegExpTest && hasStar) {
             return true;
-        } else if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
-            return false;
         }
 
-        /* Else parse subformula */
-        if (regExp instanceof UnaryFormula) {
-            UnaryFormula uFormula = (UnaryFormula) regExp;
-            Formula nested = uFormula.getNestedFormula();
-            if (nested instanceof RegExp) {
-                hasTest = checkRegExpHasTest((RegExp) nested);
+        if (formula instanceof UnaryFormula) {
+            nestedLeft = ((UnaryFormula) formula).getNestedFormula();
+
+            if (formula instanceof RegExpStar) {
+                hasTest = checkForTestWithinStar(nestedLeft, true);
             } else {
-                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
+                hasTest = checkForTestWithinStar(nestedLeft, hasStar);
             }
-        } else if (regExp instanceof BinaryFormula) {
-            BinaryFormula bFormula = (BinaryFormula) regExp;
-            RegExp left = (RegExp) bFormula.getLeftFormula();
-            RegExp right = (RegExp) bFormula.getRightFormula();
-            hasTest = checkRegExpHasTest(left);
+        } else if (formula instanceof BinaryFormula) {
+            nestedLeft = ((BinaryFormula) formula).getLeftFormula();
+            nestedRight = ((BinaryFormula) formula).getRightFormula();
+
+            hasTest = checkForTestWithinStar(nestedLeft, hasStar);
             if (!hasTest) {
-                hasTest = checkRegExpHasTest(right);
+                hasTest = checkForTestWithinStar(nestedRight, hasStar);
             }
+        } else if (formula instanceof LDLfTempOpTempFormula) {
+            nestedLeft = ((LDLfTempOpTempFormula) formula).getRegExp();
+
+            hasTest = checkForTestWithinStar(nestedLeft, hasStar);
+            /* ignore checking goal formula, only regexp is of interest */
         } else {
-            throw new IllegalArgumentException("Illegal regexp " + regExp);
-        }
-
-        return hasTest;
-    }
-
-    public static boolean checkRegExpHasTestWithinStar(RegExp regExp) {
-        boolean hasTest;
-
-        /* Base case when expression is a star formula or atomic / local */
-        if (regExp instanceof AtomicFormula || regExp instanceof LocalFormula) {
-            return false;
-        } else if (regExp instanceof RegExpStar) {
-            return checkRegExpHasTest(regExp);
-        }
-
-        /* Else parse subformula */
-        if (regExp instanceof UnaryFormula) {
-            UnaryFormula uFormula = (UnaryFormula) regExp;
-            Formula nested = uFormula.getNestedFormula();
-            if (nested instanceof RegExp) {
-                hasTest = checkRegExpHasTestWithinStar((RegExp) nested);
-            } else {
-                throw new IllegalArgumentException("Nested formula of unknown type " + nested.getClass());
-            }
-        } else if (regExp instanceof BinaryFormula) {
-            BinaryFormula bFormula = (BinaryFormula) regExp;
-            RegExp left = (RegExp) bFormula.getLeftFormula();
-            RegExp right = (RegExp) bFormula.getRightFormula();
-            hasTest = checkRegExpHasTestWithinStar(left);
-            if (!hasTest) {
-                hasTest = checkRegExpHasTestWithinStar(right);
-            }
-        } else {
-            throw new IllegalArgumentException("Illegal regexp " + regExp);
+            throw new IllegalArgumentException("Unknown formula type: " + formula);
         }
 
         return hasTest;
@@ -506,20 +469,20 @@ public class CompAutomatonUtils {
 
             if (formulaSet.size() > 0) {
                 conjunctFormula = i1.next().getUnquotedFormula();
-                hasTestWithinStar = hasTestsWithinStar(conjunctFormula);
+                hasTestWithinStar = checkForTestWithinStar(conjunctFormula);
             } else {
                 throw new IllegalArgumentException("The set of quoted formula cannot be empty!");
             }
 
             while (i1.hasNext() && !hasTestWithinStar) {
                 LDLfFormula varForm = i1.next().getUnquotedFormula();
-                hasTestWithinStar = hasTestsWithinStar(varForm);
+                hasTestWithinStar = checkForTestWithinStar(varForm);
                 conjunctFormula = new LDLfTempAndFormula(conjunctFormula, varForm);
             }
 
             /* if no tests within star do C-LDLf */
             if (!hasTestWithinStar) {
-//                System.out.println("Creating C-LDLf automaton from " + conjunctFormula);
+//                System.out.println("Creating C-LDLf automaton from " + currentFormula);
                 Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctFormula, ps, timeStarted, timeLimit);
                 connectAutomatons(automaton, comp, currentState);
             } else {
@@ -602,6 +565,12 @@ public class CompAutomatonUtils {
             State e = i2.next();
             State n;
 
+            /* if state is non-terminal formulaSet is null, otherwise it's the empty set */
+            Set<QuotedVar> formulaSet = null;
+            if (e.isTerminal()) {
+                formulaSet = new HashSet<>();
+            }
+
             /*
             If e is an initial state, use currentState, otherwise create a new state
              */
@@ -609,7 +578,7 @@ public class CompAutomatonUtils {
                 currentState.setTerminal(e.isTerminal());
                 n = currentState;
             } else {
-                n = stateFactory.create(false, e.isTerminal(), new HashSet<>()); // could produce several "equal" states?
+                n = stateFactory.create(false, e.isTerminal(), formulaSet);
             }
             map.put(e, n);
         }
