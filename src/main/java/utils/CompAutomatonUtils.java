@@ -565,12 +565,6 @@ public class CompAutomatonUtils {
             State e = i2.next();
             State n;
 
-            /* if state is non-terminal formulaSet is null, otherwise it's the empty set */
-            Set<QuotedVar> formulaSet = null;
-            if (e.isTerminal()) {
-                formulaSet = new HashSet<>();
-            }
-
             /*
             If e is an initial state, use currentState, otherwise create a new state
              */
@@ -578,7 +572,7 @@ public class CompAutomatonUtils {
                 currentState.setTerminal(e.isTerminal());
                 n = currentState;
             } else {
-                n = stateFactory.create(false, e.isTerminal(), formulaSet);
+                n = stateFactory.create(false, e.isTerminal(), null);
             }
             map.put(e, n);
         }
