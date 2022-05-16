@@ -7,6 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class RandomFormulaGenerator {
     private Random random;
 
@@ -79,54 +82,6 @@ public class RandomFormulaGenerator {
         return formula;
     }
 
-    public LTLfFormula getRandomFormulaNoUorR(List<Proposition> props, int length, double probabilityUorR) {
-        if (length < 1) {
-            throw new IllegalArgumentException("Formula length must be more than 0");
-        } else if (probabilityUorR < 0 || probabilityUorR > 1) {
-            throw new IllegalArgumentException("Illegal probability value " + probabilityUorR);
-        } else if (props.isEmpty()) {
-            throw new IllegalArgumentException("Proposition list was empty");
-        }
-
-        LTLfFormula formula;
-        LTLfFormula left;
-        LTLfFormula right;
-
-        /* base case when length is 1 or 2 */
-        if (length == 1) {
-            return getUnitLengthFormula(props);
-        } else if (length == 2) {
-            return getLength2Formula(props);
-        }
-
-        int randInt = random.nextInt(4);
-
-        /* calc possible size for binary formulas */
-        int possSize = length - 2;
-        int s1 = random.nextInt(possSize) + 1;
-        int s2 = length - s1 - 1;
-
-        if (randInt == 0) {
-            // not
-            formula = new LTLfTempNotFormula(getRandomFormulaNoUorR(props, length - 1, probabilityUorR));
-        } else if (randInt == 1) {
-            // next
-            formula = new LTLfNextFormula(getRandomFormulaNoUorR(props, length - 1, probabilityUorR));
-        } else if (randInt == 2) {
-            // and
-            left = getRandomFormulaNoUorR(props, s1, probabilityUorR);
-            right = getRandomFormulaNoUorR(props, s2, probabilityUorR);
-            formula = new LTLfTempAndFormula(left, right);
-        } else {
-            // or
-            left = getRandomFormulaNoUorR(props, s1, probabilityUorR);
-            right = getRandomFormulaNoUorR(props, s2, probabilityUorR);
-            formula = new LTLfTempOrFormula(left, right);
-        }
-
-        return formula;
-    }
-
     public LTLfFormula getRandomFormulaForG(List<Proposition> props, int length, double probabilityUorR) {
         if (length < 1) {
             throw new IllegalArgumentException("Formula length must be more than 0");
@@ -185,6 +140,10 @@ public class RandomFormulaGenerator {
     }
 
     public static List<Proposition> createPropositionList(int n) {
+        if (n > 26) {
+            throw new IllegalArgumentException("Number of propositions more than a-z, weird things might happen!");
+        }
+
         List<Proposition> propositions = new ArrayList<>();
 
         for (int i = 0; i < n; i++) {
