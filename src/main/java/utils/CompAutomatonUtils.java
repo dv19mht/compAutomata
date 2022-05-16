@@ -23,6 +23,9 @@ import rationals.transformations.*;
 
 import java.util.*;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class CompAutomatonUtils {
 
     public static Automaton LDLfToAutomaton(boolean declare, LDLfFormula formula, PropositionalSignature ps) {
@@ -49,9 +52,21 @@ public class CompAutomatonUtils {
         } else if (formula instanceof BinaryFormula) {
             automaton = binaryToAutomaton(declare, (BinaryFormula) formula, ps, timeStarted, timeLimit);
         } else if (formula instanceof LDLfDiamondFormula) {
-            automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
+            if (checkForTestWithinStar(formula)) {
+                // calc time left
+                long timeLeft = System.currentTimeMillis() - timeStarted;
+                automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
+            } else {
+                automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
+            }
         } else if (formula instanceof LDLfBoxFormula) {
-            automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
+            if (checkForTestWithinStar(formula)) {
+                // calc time left
+                long timeLeft = System.currentTimeMillis() - timeStarted;
+                automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
+            } else {
+                automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
+            }
         } else {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
@@ -60,6 +75,20 @@ public class CompAutomatonUtils {
         automaton = new Reducer<>().transform(automaton);
 
         return automaton;
+    }
+
+    public static LDLfFormula stringToNnfLDLf(String input) {
+        LTLfFormula ltl = ParserUtils.parseLTLfFormula(input);
+        LDLfFormula ldl = ltl.toLDLf();
+        ldl = (LDLfFormula) ldl.nnf();
+        return ldl;
+    }
+
+    /*
+     * Only tested on nnf-LDLfFormula
+     */
+    public static boolean checkForTestWithinStar(Formula formula) {
+        return checkForTestWithinStar(formula, false);
     }
 
     private static Automaton boxToAutomaton(boolean declare, LDLfBoxFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
@@ -87,40 +116,35 @@ public class CompAutomatonUtils {
                 throw new IllegalArgumentException("Right regexp should not be a test formula: " + rightFormula);
             }
 
-            // create [rho2]phi first
+            // create [rho2]phi first, then [rho1]phi'
+            LDLfFormula rho2phi = new LDLfBoxFormula(rightFormula, phi); // need to clone formulae?
+            LDLfFormula rho1phi = new LDLfBoxFormula(leftFormula, rho2phi); // need to clone formulae?
+            automaton = LDLfToAutomaton(declare, rho1phi, ps, timeStarted, timeLimit);
+        }
+        /* [rho1 + rho2]phi = [rho1]phi && [rho2]phi */
+        else if (rho instanceof RegExpAltern) {
+            RegExp leftFormula = ((RegExpAltern) rho).getLeftFormula();
+            RegExp rightFormula = ((RegExpAltern) rho).getRightFormula();
+
+            LDLfFormula rho1phi = new LDLfBoxFormula(leftFormula, phi);
             LDLfFormula rho2phi = new LDLfBoxFormula(rightFormula, phi);
 
-            rhoLeftAutomaton = LDLfToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
-            phiAutomaton = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
-
-            /* [psi? ; rho2]phi = !psi || [rho2]phi */
-            if (leftFormula instanceof RegExpTest) {
-                Automaton rhoLeftComplement = new Complement<>().transform(rhoLeftAutomaton);
-                automaton = new Union<>().transform(rhoLeftComplement, phiAutomaton);
-            }
-            /* [rho1 ; rho2]phi = [rho1][rho2]phi = !<rho1>![rho2]phi (phi = [rho2]phi at this point) */
-            else {
-                automaton = complementDiamondFormula(rhoLeftAutomaton, phiAutomaton);
-            }
-
+            Automaton rho1 = LDLfToAutomaton(declare, rho1phi, ps, timeStarted, timeLimit);
+            Automaton rho2 = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
+            automaton = new Mix<>().transform(rho1, rho2);
         }
 
-        /* If rho* with tests, use ldlf2nfa algorithm */
-//        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
-        else if (rho instanceof RegExpStar && checkForTestWithinStar(rho)) {
-            /*
-            Use top-down algorithm if star and has tests
-             */
-//            System.out.println("Using LDLF2DFA on " + formula);
-//            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
-            automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
+        else if (rho instanceof RegExpStar) {
+            Formula nestedFormula = ((RegExpStar) rho).getNestedFormula();
+            LDLfFormula rhoEnd = new LDLfDiamondFormula((RegExp) nestedFormula, FormulaUtils.generateLDLfEndedFormula());
+
+            Automaton endAutomaton = LDLfToAutomaton(declare, rhoEnd, ps, timeStarted, timeLimit);
+            endAutomaton = new Star<>().transform(endAutomaton); // Reduce??
+            phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
+            automaton = complementDiamondFormula(endAutomaton, phiAutomaton);
         }
         /* [rho]phi = !<rho>!phi */
         else {
-            /*
-            Proceed with compositional algorithm
-             */
-//            System.err.println("Using COMPOSITIONAL on " + formula);
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = complementDiamondFormula(rhoLeftAutomaton, phiAutomaton);
@@ -148,39 +172,35 @@ public class CompAutomatonUtils {
             RegExp leftFormula = ((RegExpConcat) rho).getLeftFormula();
             RegExp rightFormula = ((RegExpConcat) rho).getRightFormula();
 
-            if (rightFormula instanceof RegExpTest) {
-                throw new IllegalArgumentException("Right regexp should not be a test formula: " + rightFormula);
-            }
+            // create <rho2>phi first, then <rho1>phi'
+            LDLfFormula rho2phi = new LDLfDiamondFormula(rightFormula, phi); // need to clone formulae?
+            LDLfFormula rho1phi = new LDLfDiamondFormula(leftFormula, rho2phi); // need to clone formulae?
+            automaton = LDLfToAutomaton(declare, rho1phi, ps, timeStarted, timeLimit);
+        }
+        /* <rho1 + rho2>phi = <rho1>phi || <rho2>phi */
+        else if (rho instanceof RegExpAltern) {
+            RegExp leftFormula = ((RegExpAltern) rho).getLeftFormula();
+            RegExp rightFormula = ((RegExpAltern) rho).getRightFormula();
 
-            // create <rho2>phi first
+            LDLfFormula rho1phi = new LDLfDiamondFormula(leftFormula, phi);
             LDLfFormula rho2phi = new LDLfDiamondFormula(rightFormula, phi);
 
-            rhoLeftAutomaton = LDLfToAutomaton(declare, leftFormula, ps, timeStarted, timeLimit);
-            phiAutomaton = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
-
-            if (leftFormula instanceof RegExpTest) {
-                automaton = new Mix<>().transform(rhoLeftAutomaton, phiAutomaton);
-            } else {
-                automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
-            }
-
+            Automaton rho1 = LDLfToAutomaton(declare, rho1phi, ps, timeStarted, timeLimit);
+            Automaton rho2 = LDLfToAutomaton(declare, rho2phi, ps, timeStarted, timeLimit);
+            automaton = new Union<>().transform(rho1, rho2);
         }
-        /* If rho* with tests, use ldlf2nfa algorithm */
-//        else if (rho instanceof RegExpStar && checkRegExpHasTest(rho)) {
-        else if (rho instanceof RegExpStar && checkForTestWithinStar(rho)) {
-            /*
-            Use top-down algorithm if star and has tests
-             */
-//            System.out.println("Using LDLF2DFA on " + formula);
-//            automaton = AutomatonUtils.ldlf2Automaton(declare, formula, ps, timeLimit);
-            automaton = CompAutomatonUtils.ldlf2nfaComp(declare, formula, ps, timeLimit);
+        /* <rho*>phi = (<rho>end)*phi */
+        else if (rho instanceof RegExpStar) {
+            Formula nestedFormula = ((RegExpStar) rho).getNestedFormula();
+            LDLfFormula rhoEnd = new LDLfDiamondFormula((RegExp) nestedFormula, FormulaUtils.generateLDLfEndedFormula());
+
+            Automaton endAutomaton = LDLfToAutomaton(declare, rhoEnd, ps, timeStarted, timeLimit);
+            endAutomaton = new Star<>().transform(endAutomaton);
+            phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
+            automaton = new Concatenation<>().transform(endAutomaton, phiAutomaton);
         }
         /* <rho>phi */
         else {
-            /*
-            Proceed with compositional algorithm
-             */
-//            System.err.println("Using COMPOSITIONAL on " + formula);
             rhoLeftAutomaton = LDLfToAutomaton(declare, rho, ps, timeStarted, timeLimit);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = new Concatenation<>().transform(rhoLeftAutomaton, phiAutomaton);
@@ -210,11 +230,7 @@ public class CompAutomatonUtils {
             automaton = new Mix<>().transform(leftAutomaton, rightAutomaton);
         } else if (formula instanceof LDLfTempOrFormula) {
             automaton = new Union<>().transform(leftAutomaton, rightAutomaton);
-//        } else if (formula instanceof RegExpConcat) {
-//            automaton = new Concatenation<>().transform(leftAutomaton, rightAutomaton);
         } else {
-            //RegExpAltern?
-            //RegExpConCat?
             throw new IllegalArgumentException("Illegal binary formula " + formula);
         }
 
@@ -224,28 +240,7 @@ public class CompAutomatonUtils {
     private static Automaton unaryToAutomaton(boolean declare, UnaryFormula formula, PropositionalSignature ps, long timeStarted, long timeLimit) {
         Automaton automaton;
         automaton = LDLfToAutomaton(declare, formula.getNestedFormula(), ps, timeStarted, timeLimit);
-
-        if (formula instanceof RegExpStar) {
-            Automaton end = LDLfToAutomaton(declare, FormulaUtils.generateLDLfEndedFormula(), ps, timeStarted, timeLimit);
-            automaton = new Concatenation<>().transform(automaton, end);
-            automaton = new Star<>().transform(automaton);
-        }
-
         return automaton;
-    }
-
-    public static LDLfFormula stringToNnfLDLf(String input) {
-        LTLfFormula ltl = ParserUtils.parseLTLfFormula(input);
-        LDLfFormula ldl = ltl.toLDLf();
-        ldl = (LDLfFormula) ldl.nnf();
-        return ldl;
-    }
-
-    /*
-     * Only tested on nnf-LDLfFormula
-     */
-    public static boolean checkForTestWithinStar(Formula formula) {
-        return checkForTestWithinStar(formula, false);
     }
 
     private static boolean checkForTestWithinStar(Formula formula, boolean hasStar) {
@@ -288,7 +283,7 @@ public class CompAutomatonUtils {
         return hasTest;
     }
 
-    public static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
+    private static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
         Automaton automaton;
         State initialState;
         State endState;
@@ -332,6 +327,144 @@ public class CompAutomatonUtils {
 
         automaton = new SinkComplete().transform(automaton);
         automaton = new Reducer<>().transform(automaton);
+
+        return automaton;
+    }
+
+
+    /* ------ ldl2nfa compositional ------ */
+
+    public static Automaton ldlf2nfaComp(boolean declare, LDLfFormula initialFormula, PropositionalSignature ps, long timeLimit) {
+        long timeStarted = System.currentTimeMillis();
+
+        // Automaton initialization: empty automaton
+        QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
+        Automaton automaton = new Automaton(stateFactory);
+        stateFactory.setAutomaton(automaton);
+
+        /*
+        Algorithm data structures
+         */
+        LinkedList<QuotedFormulaState> toAnalyze = new LinkedList<>();
+
+        /*
+        Get all possible models for the signature and depending on the declare assumption.
+         */
+        Set<PossibleWorld> allLabels = buildAllLabels(ps);
+
+        /*
+        Initialize the data structure for the "false" state.
+         */
+        QuotedFormulaState falseState = (QuotedFormulaState) stateFactory.create(false, false, null);
+
+        // Initialize the data structure for the initial state;
+        Set<QuotedVar> initialStateFormulas = new HashSet<>();
+        initialStateFormulas.add(new QuotedVar(initialFormula));
+
+        /*
+        Creation of the initial state.
+         */
+        QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, false, initialStateFormulas);
+
+        // Check if final and perform operations accordingly
+        handleIfFinal(automaton, initialState, allLabels);
+
+        // Add the initial state to the set of state to be analyzed
+        toAnalyze.add(initialState);
+
+        /*
+        All transition loops in the false state
+         */
+        addLoopingTransitions(allLabels, falseState, falseState, automaton);
+
+        // Cycle on states yet to be analyzed
+        while (!toAnalyze.isEmpty() && ((System.currentTimeMillis() - timeStarted) < timeLimit)) {
+            QuotedFormulaState currentState = toAnalyze.getFirst();
+
+            /*
+             Make conjunction of unquoted formula, stop if tests
+             */
+            Set<QuotedVar> formulaSet = currentState.getFormulaSet();
+            LDLfFormula conjunctFormula;
+            boolean hasTestWithinStar;
+
+            Iterator<QuotedVar> i1 = formulaSet.iterator();
+
+            if (formulaSet.size() > 0) {
+                conjunctFormula = i1.next().getUnquotedFormula();
+                hasTestWithinStar = checkForTestWithinStar(conjunctFormula);
+            } else {
+                throw new IllegalArgumentException("The set of quoted formula cannot be empty!");
+            }
+
+            while (i1.hasNext() && !hasTestWithinStar) {
+                LDLfFormula varForm = i1.next().getUnquotedFormula();
+                hasTestWithinStar = checkForTestWithinStar(varForm);
+                conjunctFormula = new LDLfTempAndFormula(conjunctFormula, varForm);
+            }
+
+            /* if no tests within star do C-LDLf */
+            if (!hasTestWithinStar) {
+//                System.out.println("Creating C-LDLf automaton from " + conjunctFormula);
+                Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctFormula, ps, timeStarted, timeLimit);
+                connectAutomatons(automaton, comp, currentState);
+            } else {
+                // Conjunction of the QuotedVar belonging to the current state
+                QuotedFormula currentFormula = currentState.getQuotedConjunction();
+
+                // For each possible label, call the delta function on currentFormula
+                for (PossibleWorld label : allLabels) {
+                    // All labels are PossibleWorldWrap which implement TransitionLabel
+                    QuotedFormula deltaResult = currentFormula.delta((TransitionLabel) label);
+
+                    // Compute the minimal interpretations satisfying deltaResult, that is, all the q'
+                    Set<Set<QuotedVar>> newStateSetFormulas = deltaResult.getMinimalModels();
+
+                    // newStateFormulas empty means that the current interpretation lead to the "false" state.
+                    if (newStateSetFormulas.isEmpty()) {
+                        // Add the transition (currentState, world, falseState)
+                        Transition<PossibleWorld> t = new Transition<>(currentState, label, falseState);
+                        try {
+                            automaton.addTransition(t);
+                        } catch (NoSuchStateException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    // Otherwise, the transition DOES NOT lead to the false state.
+                    else {
+                        for (Set<QuotedVar> newStateFormulas : newStateSetFormulas) {
+                            //Add the new state if new, or give me the already existing one with the same Set<QuotedVar>
+                            QuotedFormulaState destinationState = getStateIfExists(automaton, newStateFormulas);
+
+                            if (destinationState == null) {
+                                destinationState = (QuotedFormulaState) stateFactory.create(false, false, newStateFormulas);
+                                handleIfFinal(automaton, destinationState, allLabels);
+
+                                // Add to the set of states to be analyzed only if it is not the true state!
+                                if (!destinationState.getFormulaSet().isEmpty()) {
+                                    toAnalyze.addLast(destinationState);
+                                }
+                            }
+
+                            // Add the transition (currentState, world, destinationState)
+                            Transition<PossibleWorld> t = new Transition<>(currentState, label, destinationState);
+                            try {
+                                automaton.addTransition(t);
+                            } catch (NoSuchStateException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+
+                /* timeout */
+                if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
+                    break;
+                }
+            }
+            toAnalyze.remove(currentState);
+        }
 
         return automaton;
     }
@@ -409,141 +542,6 @@ public class CompAutomatonUtils {
         }
 
         return result;
-    }
-
-    public static Automaton ldlf2nfaComp(boolean declare, LDLfFormula initialFormula, PropositionalSignature ps, long timeLimit) {
-        long timeStarted = System.currentTimeMillis();
-
-        // Automaton initialization: empty automaton
-        QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
-        Automaton automaton = new Automaton(stateFactory);
-        stateFactory.setAutomaton(automaton);
-
-        /*
-        Algorithm data structures
-         */
-        LinkedList<QuotedFormulaState> toAnalyze = new LinkedList<>();
-
-        /*
-        Get all possible models for the signature and depending on the declare assumption.
-         */
-        Set<PossibleWorld> allLabels = buildAllLabels(ps); // changed from <TransitionLabel>
-
-        /*
-        Initialize the data structure for the "false" state.
-         */
-        QuotedFormulaState falseState = (QuotedFormulaState) stateFactory.create(false, false, null);
-
-        // Initialize the data structure for the initial state;
-        Set<QuotedVar> initialStateFormulas = new HashSet<>();
-        initialStateFormulas.add(new QuotedVar(initialFormula));
-
-        /*
-        Creation of the initial state.
-         */
-        QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, false, initialStateFormulas);
-
-        // Check if final and perform operations accordingly
-        handleIfFinal(automaton, initialState, allLabels);
-
-        // Add the initial state to the set of state to be analyzed
-        toAnalyze.add(initialState);
-
-        /*
-        All transition loops in the false state
-         */
-        addLoopingTransitions(allLabels, falseState, falseState, automaton);
-
-        // Cycle on states yet to be analyzed
-        while (!toAnalyze.isEmpty() && ((System.currentTimeMillis() - timeStarted) < timeLimit)) {
-            QuotedFormulaState currentState = toAnalyze.getFirst();
-
-            /*
-             Make conjunction of unquoted formula
-             */
-            Set<QuotedVar> formulaSet = currentState.getFormulaSet();
-            LDLfFormula conjunctFormula;
-            boolean hasTestWithinStar;
-
-            Iterator<QuotedVar> i1 = formulaSet.iterator();
-
-            if (formulaSet.size() > 0) {
-                conjunctFormula = i1.next().getUnquotedFormula();
-                hasTestWithinStar = checkForTestWithinStar(conjunctFormula);
-            } else {
-                throw new IllegalArgumentException("The set of quoted formula cannot be empty!");
-            }
-
-            while (i1.hasNext() && !hasTestWithinStar) {
-                LDLfFormula varForm = i1.next().getUnquotedFormula();
-                hasTestWithinStar = checkForTestWithinStar(varForm);
-                conjunctFormula = new LDLfTempAndFormula(conjunctFormula, varForm);
-            }
-
-            /* if no tests within star do C-LDLf */
-            if (!hasTestWithinStar) {
-//                System.out.println("Creating C-LDLf automaton from " + currentFormula);
-                Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctFormula, ps, timeStarted, timeLimit);
-                connectAutomatons(automaton, comp, currentState);
-            } else {
-                // Conjunction of the QuotedVar belonging to the current state
-                QuotedFormula currentFormula = currentState.getQuotedConjunction();
-
-                // For each possible label, call the delta function on currentFormula
-                for (PossibleWorld label : allLabels) {
-                    // Hack, all labels are PossibleWorldWrap which implement TransitionLabel
-                    QuotedFormula deltaResult = currentFormula.delta((TransitionLabel) label);
-
-                    // Compute the minimal interpretations satisfying deltaResult, that is, all the q'
-                    Set<Set<QuotedVar>> newStateSetFormulas = deltaResult.getMinimalModels();
-
-                    // newStateFormulas empty means that the current interpretation lead to the "false" state.
-                    if (newStateSetFormulas.isEmpty()) {
-                        // Add the transition (currentState, world, falseState)
-                        Transition<PossibleWorld> t = new Transition<>(currentState, label, falseState);
-                        try {
-                            automaton.addTransition(t);
-                        } catch (NoSuchStateException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    // Otherwise, the transition DOES NOT lead to the false state.
-                    else {
-                        for (Set<QuotedVar> newStateFormulas : newStateSetFormulas) {
-                            //Add the new state if new, or give me the already existing one with the same Set<QuotedVar>
-                            QuotedFormulaState destinationState = getStateIfExists(automaton, newStateFormulas);
-
-                            if (destinationState == null) {
-                                destinationState = (QuotedFormulaState) stateFactory.create(false, false, newStateFormulas);
-                                handleIfFinal(automaton, destinationState, allLabels);
-
-                                // Add to the set of states to be analyzed only if it is not the true state!
-                                if (!destinationState.getFormulaSet().isEmpty()) {
-                                    toAnalyze.addLast(destinationState);
-                                }
-                            }
-
-                            // Add the transition (currentState, world, destinationState)
-                            Transition<PossibleWorld> t = new Transition<>(currentState, label, destinationState);
-                            try {
-                                automaton.addTransition(t);
-                            } catch (NoSuchStateException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-
-                /* timeout */
-                if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
-                    break;
-                }
-            }
-            toAnalyze.remove(currentState);
-        }
-
-        return automaton;
     }
 
     /*
