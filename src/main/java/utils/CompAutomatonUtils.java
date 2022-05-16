@@ -54,7 +54,7 @@ public class CompAutomatonUtils {
         } else if (formula instanceof LDLfDiamondFormula) {
             if (checkForTestWithinStar(formula)) {
                 // calc time left
-                long timeLeft = System.currentTimeMillis() - timeStarted;
+                long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
@@ -62,7 +62,7 @@ public class CompAutomatonUtils {
         } else if (formula instanceof LDLfBoxFormula) {
             if (checkForTestWithinStar(formula)) {
                 // calc time left
-                long timeLeft = System.currentTimeMillis() - timeStarted;
+                long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
@@ -140,6 +140,7 @@ public class CompAutomatonUtils {
 
             Automaton endAutomaton = LDLfToAutomaton(declare, rhoEnd, ps, timeStarted, timeLimit);
             endAutomaton = new Star<>().transform(endAutomaton); // Reduce??
+            endAutomaton = new Reducer<>().transform(endAutomaton);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = complementDiamondFormula(endAutomaton, phiAutomaton);
         }
@@ -196,6 +197,7 @@ public class CompAutomatonUtils {
 
             Automaton endAutomaton = LDLfToAutomaton(declare, rhoEnd, ps, timeStarted, timeLimit);
             endAutomaton = new Star<>().transform(endAutomaton);
+            endAutomaton = new Reducer<>().transform(endAutomaton);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = new Concatenation<>().transform(endAutomaton, phiAutomaton);
         }
