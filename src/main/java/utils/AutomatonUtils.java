@@ -154,7 +154,7 @@ public class AutomatonUtils {
     }
 
 
-    private static Set<TransitionLabel> buildAllLables(boolean declare, PropositionalSignature ps) {
+    public static Set<TransitionLabel> buildAllLables(boolean declare, PropositionalSignature ps) {
         Set<TransitionLabel> allLabels = new HashSet<>();
 
         if(declare) {
@@ -179,7 +179,7 @@ public class AutomatonUtils {
 
 
 
-    private static void handleIfFinal(Automaton automaton, QuotedFormulaState destinationState, Set<TransitionLabel> allLabels) {
+    public static void handleIfFinal(Automaton automaton, QuotedFormulaState destinationState, Set<TransitionLabel> allLabels) {
         /*
         If state is the sink final state (true state), i.e., the state with the empty set of quoted formulas,
         then set as final and add all looping transitions.
