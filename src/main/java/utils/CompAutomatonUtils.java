@@ -1,7 +1,5 @@
 package utils;
 
-import automaton.EmptyTrace;
-import automaton.PossibleWorldWrap;
 import automaton.QuotedFormulaStateFactory;
 import automaton.QuotedFormulaStateFactory.QuotedFormulaState;
 import automaton.TransitionLabel;
@@ -12,7 +10,6 @@ import formula.quotedFormula.QuotedFormula;
 import formula.quotedFormula.QuotedVar;
 import formula.regExp.*;
 import net.sf.tweety.logics.pl.semantics.PossibleWorld;
-import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalFormula;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import rationals.Automaton;
@@ -39,7 +36,7 @@ public class CompAutomatonUtils {
          * Base case when the formula is an atomic proposition, i.e. 'tt', 'ff' or propositional regexp
          */
         if (formula instanceof AtomicFormula || formula instanceof LocalFormula) {
-            automaton = getElementaryAutomaton(formula, ps);
+            automaton = getElementaryAutomaton(formula, declare, ps);
             return automaton;
         } else if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
             // time out
@@ -71,8 +68,11 @@ public class CompAutomatonUtils {
             throw new IllegalArgumentException("Illegal formula " + formula);
         }
 
-        automaton = new SinkComplete().transform(automaton);
-        automaton = new Reducer<>().transform(automaton);
+        /* if time left, reduce */
+        if ((System.currentTimeMillis() - timeStarted) < timeLimit) {
+            automaton = new SinkComplete().transform(automaton);
+            automaton = new Reducer<>().transform(automaton);
+        }
 
         return automaton;
     }
@@ -285,7 +285,7 @@ public class CompAutomatonUtils {
         return hasTest;
     }
 
-    private static Automaton getElementaryAutomaton(Formula formula, PropositionalSignature ps) {
+    private static Automaton getElementaryAutomaton(Formula formula, boolean declare, PropositionalSignature ps) {
         Automaton automaton;
         State initialState;
         State endState;
@@ -293,7 +293,7 @@ public class CompAutomatonUtils {
 
         automaton = new Automaton();
 
-        Set<PossibleWorld> labels = buildAllLabels(ps);
+        Set<TransitionLabel> labels = AutomatonUtils.buildAllLables(declare, ps);
 
         if (formula instanceof LDLfttFormula) {
             initialState = automaton.addState(true, true);
@@ -308,10 +308,10 @@ public class CompAutomatonUtils {
 
             PropositionalFormula propFormula = ((RegExpLocal) formula).regExpLocal2Propositional();
 
-            for (PossibleWorld label : labels) {
-                Transition<PossibleWorld> transition;
+            for (TransitionLabel label : labels) {
+                Transition<TransitionLabel> transition;
 
-                if (label.satisfies(propFormula)) {
+                if (((PossibleWorld) label).satisfies(propFormula)) {
                     transition = new Transition<>(initialState, label, endState);
                 } else {
                     transition = new Transition<>(initialState, label, falseState);
@@ -352,7 +352,7 @@ public class CompAutomatonUtils {
         /*
         Get all possible models for the signature and depending on the declare assumption.
          */
-        Set<PossibleWorld> allLabels = buildAllLabels(ps);
+        Set<TransitionLabel> allLabels = AutomatonUtils.buildAllLables(declare, ps);
 
         /*
         Initialize the data structure for the "false" state.
@@ -369,7 +369,7 @@ public class CompAutomatonUtils {
         QuotedFormulaState initialState = (QuotedFormulaState) stateFactory.create(true, false, initialStateFormulas);
 
         // Check if final and perform operations accordingly
-        handleIfFinal(automaton, initialState, allLabels);
+        AutomatonUtils.handleIfFinal(automaton, initialState, allLabels);
 
         // Add the initial state to the set of state to be analyzed
         toAnalyze.add(initialState);
@@ -415,9 +415,9 @@ public class CompAutomatonUtils {
                 QuotedFormula currentFormula = currentState.getQuotedConjunction();
 
                 // For each possible label, call the delta function on currentFormula
-                for (PossibleWorld label : allLabels) {
+                for (TransitionLabel label : allLabels) {
                     // All labels are PossibleWorldWrap which implement TransitionLabel
-                    QuotedFormula deltaResult = currentFormula.delta((TransitionLabel) label);
+                    QuotedFormula deltaResult = currentFormula.delta(label);
 
                     // Compute the minimal interpretations satisfying deltaResult, that is, all the q'
                     Set<Set<QuotedVar>> newStateSetFormulas = deltaResult.getMinimalModels();
@@ -425,7 +425,7 @@ public class CompAutomatonUtils {
                     // newStateFormulas empty means that the current interpretation lead to the "false" state.
                     if (newStateSetFormulas.isEmpty()) {
                         // Add the transition (currentState, world, falseState)
-                        Transition<PossibleWorld> t = new Transition<>(currentState, label, falseState);
+                        Transition<TransitionLabel> t = new Transition<>(currentState, label, falseState);
                         try {
                             automaton.addTransition(t);
                         } catch (NoSuchStateException e) {
@@ -441,7 +441,7 @@ public class CompAutomatonUtils {
 
                             if (destinationState == null) {
                                 destinationState = (QuotedFormulaState) stateFactory.create(false, false, newStateFormulas);
-                                handleIfFinal(automaton, destinationState, allLabels);
+                                AutomatonUtils.handleIfFinal(automaton, destinationState, allLabels);
 
                                 // Add to the set of states to be analyzed only if it is not the true state!
                                 if (!destinationState.getFormulaSet().isEmpty()) {
@@ -450,7 +450,7 @@ public class CompAutomatonUtils {
                             }
 
                             // Add the transition (currentState, world, destinationState)
-                            Transition<PossibleWorld> t = new Transition<>(currentState, label, destinationState);
+                            Transition<TransitionLabel> t = new Transition<>(currentState, label, destinationState);
                             try {
                                 automaton.addTransition(t);
                             } catch (NoSuchStateException e) {
@@ -458,11 +458,11 @@ public class CompAutomatonUtils {
                             }
                         }
                     }
-                }
 
-                /* timeout */
-                if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
-                    break;
+                    /* timeout */
+                    if ((System.currentTimeMillis() - timeStarted) > timeLimit) {
+                        break;
+                    }
                 }
             }
             toAnalyze.remove(currentState);
@@ -471,65 +471,14 @@ public class CompAutomatonUtils {
         return automaton;
     }
 
-    private static Set<PossibleWorld> buildAllLabels(PropositionalSignature ps) {
-        Set<PossibleWorld> labels = new HashSet<>();
-
-        for (Proposition p : ps) {
-            Set<Proposition> propSet = new HashSet<>();
-            propSet.add(p);
-
-            /* Use Wrap to use the same labels as ldlf2nfa-algorithm */
-            labels.add(new PossibleWorldWrap(propSet));
-        }
-        return labels;
-    }
-
-    private static void addLoopingTransitions(Set<PossibleWorld> labels, State from, State to, Automaton automaton) {
-        for (PossibleWorld label : labels) {
-            Transition<PossibleWorld> transition = new Transition<>(from, label, to);
+    private static void addLoopingTransitions(Set<TransitionLabel> labels, State from, State to, Automaton automaton) {
+        for (TransitionLabel label : labels) {
+            Transition<TransitionLabel> transition = new Transition<>(from, label, to);
 
             try {
                 automaton.addTransition(transition);
             } catch (NoSuchStateException e) {
                 e.printStackTrace();
-            }
-        }
-    }
-
-    private static void handleIfFinal(Automaton automaton, QuotedFormulaState destinationState, Set<PossibleWorld> allLabels) {
-        /*
-        If state is the sink final state (true state), i.e., the state with the empty set of quoted formulas,
-        then set as final and add all looping transitions.
-         */
-        if (destinationState.getFormulaSet().isEmpty()) {
-            destinationState.setTerminal(true);
-            addLoopingTransitions(allLabels, destinationState, destinationState, automaton);
-            return;
-        }
-
-        /*
-        Create the emptyTrace special label!
-         */
-        TransitionLabel emptyTrace = new EmptyTrace();
-        QuotedFormula currentFormula = destinationState.getQuotedConjunction();
-        QuotedFormula deltaResult = currentFormula.delta(emptyTrace);
-        Set<Set<QuotedVar>> allMinimalModels = deltaResult.getMinimalModels();
-
-        /*
-        If the set of possible models is empty, then it is the false state. So return
-         */
-        if (allMinimalModels.isEmpty()) {
-            return;
-        }
-
-        /*
-        Otherwise, it has some model. Check if there is the empty one (i.e., true) among those.
-        If this is the case, then set it as final.
-         */
-        for (Set<QuotedVar> model : allMinimalModels) {
-            if (model.isEmpty()) {
-                destinationState.setTerminal(true);
-                return;
             }
         }
     }
@@ -570,20 +519,20 @@ public class CompAutomatonUtils {
              */
             if (e.isInitial()) {
                 currentState.setTerminal(e.isTerminal());
-                n = currentState;
+                map.put(e, currentState);
             } else {
                 n = stateFactory.create(false, e.isTerminal(), null);
+                map.put(e, n);
             }
-            map.put(e, n);
         }
 
         /*
         Add all transitions
          */
-        Iterator<Transition<PossibleWorld>> i3 = comp.delta().iterator();
+        Iterator<Transition<TransitionLabel>> i3 = comp.delta().iterator();
         while (i3.hasNext()) {
-            Transition<PossibleWorld> te = i3.next();
-            Transition<PossibleWorld> tn = new Transition<>(map.get(te.start()), te.label(), map.get(te.end()));
+            Transition<TransitionLabel> te = i3.next();
+            Transition<TransitionLabel> tn = new Transition<>(map.get(te.start()), te.label(), map.get(te.end()));
 
             try {
                 mainAutomaton.addTransition(tn);
