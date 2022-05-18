@@ -225,7 +225,7 @@ public class AutomatonUtils {
 
 
 
-    private static QuotedFormulaState getStateIfExists(Automaton a, Set<QuotedVar> sqv) {
+    public static QuotedFormulaState getStateIfExists(Automaton a, Set<QuotedVar> sqv) {
         QuotedFormulaState result = null;
         Set<QuotedFormulaState> states = a.states();
         for (QuotedFormulaState s : states) {
