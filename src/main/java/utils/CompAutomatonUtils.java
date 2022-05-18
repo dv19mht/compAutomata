@@ -53,6 +53,7 @@ public class CompAutomatonUtils {
                 // calc time left
                 long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
+//                automaton = AutomatonUtils.ldlf2Automaton(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
             }
@@ -61,6 +62,7 @@ public class CompAutomatonUtils {
                 // calc time left
                 long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
+//                automaton = AutomatonUtils.ldlf2Automaton(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
             }
@@ -112,10 +114,6 @@ public class CompAutomatonUtils {
             RegExp leftFormula = ((RegExpConcat) rho).getLeftFormula();
             RegExp rightFormula = ((RegExpConcat) rho).getRightFormula();
 
-            if (rightFormula instanceof RegExpTest) {
-                throw new IllegalArgumentException("Right regexp should not be a test formula: " + rightFormula);
-            }
-
             // create [rho2]phi first, then [rho1]phi'
             LDLfFormula rho2phi = new LDLfBoxFormula(rightFormula, phi); // need to clone formulae?
             LDLfFormula rho1phi = new LDLfBoxFormula(leftFormula, rho2phi); // need to clone formulae?
@@ -139,7 +137,7 @@ public class CompAutomatonUtils {
             LDLfFormula rhoEnd = new LDLfDiamondFormula((RegExp) nestedFormula, FormulaUtils.generateLDLfEndedFormula());
 
             Automaton endAutomaton = LDLfToAutomaton(declare, rhoEnd, ps, timeStarted, timeLimit);
-            endAutomaton = new Star<>().transform(endAutomaton); // Reduce??
+            endAutomaton = new Star<>().transform(endAutomaton);
             endAutomaton = new Reducer<>().transform(endAutomaton);
             phiAutomaton = LDLfToAutomaton(declare, phi, ps, timeStarted, timeLimit);
             automaton = complementDiamondFormula(endAutomaton, phiAutomaton);
@@ -291,7 +289,7 @@ public class CompAutomatonUtils {
         State endState;
         State falseState;
 
-        automaton = new Automaton();
+        automaton = new Automaton<>();
 
         Set<TransitionLabel> labels = AutomatonUtils.buildAllLables(declare, ps);
 
@@ -341,7 +339,7 @@ public class CompAutomatonUtils {
 
         // Automaton initialization: empty automaton
         QuotedFormulaStateFactory stateFactory = new QuotedFormulaStateFactory();
-        Automaton automaton = new Automaton(stateFactory);
+        Automaton automaton = new Automaton<>(stateFactory);
         stateFactory.setAutomaton(automaton);
 
         /*
@@ -437,7 +435,7 @@ public class CompAutomatonUtils {
                     else {
                         for (Set<QuotedVar> newStateFormulas : newStateSetFormulas) {
                             //Add the new state if new, or give me the already existing one with the same Set<QuotedVar>
-                            QuotedFormulaState destinationState = getStateIfExists(automaton, newStateFormulas);
+                            QuotedFormulaState destinationState = AutomatonUtils.getStateIfExists(automaton, newStateFormulas);
 
                             if (destinationState == null) {
                                 destinationState = (QuotedFormulaState) stateFactory.create(false, false, newStateFormulas);
@@ -481,18 +479,6 @@ public class CompAutomatonUtils {
                 e.printStackTrace();
             }
         }
-    }
-
-    private static QuotedFormulaState getStateIfExists(Automaton a, Set<QuotedVar> sqv) {
-        QuotedFormulaState result = null;
-        Set<QuotedFormulaState> states = a.states();
-        for (QuotedFormulaState s : states) {
-            if (s.getFormulaSet() != null && s.getFormulaSet().equals(sqv)) {
-                return s;
-            }
-        }
-
-        return result;
     }
 
     /*
