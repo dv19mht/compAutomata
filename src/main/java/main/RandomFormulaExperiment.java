@@ -7,6 +7,7 @@ import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import rationals.Automaton;
 import rationals.properties.ModelCheck;
 import rationals.properties.isEmpty;
+import rationals.transformations.Reducer;
 import utils.CompAutomatonUtils;
 import utils.RandomFormulaGenerator;
 
@@ -18,7 +19,7 @@ import java.util.Random;
 public class RandomFormulaExperiment {
 
     public static void main(String[] args) {
-        try (PrintWriter resultPrinter = new PrintWriter("rand_form.txt")) {
+        try (PrintWriter resultPrinter = new PrintWriter("rand_form_5_40.txt")) {
             int lengths = Integer.parseInt(args[0]);
             int nProps = Integer.parseInt(args[1]);
             long timeLimit = Integer.parseInt(args[2]) * 1000L;
@@ -32,7 +33,7 @@ public class RandomFormulaExperiment {
                     for (int numProps = nProps; numProps <= nProps; numProps++) {
                         ExperimentResultWrapper ldlf2nfaResult;
                         ExperimentResultWrapper cldlfResult;
-                        ExperimentResultWrapper top2cldlfResult;
+//                        ExperimentResultWrapper top2cldlfResult;
                         random.setSeed(len + i);
                         RandomFormulaGenerator generator = new RandomFormulaGenerator(random);
 
@@ -52,17 +53,17 @@ public class RandomFormulaExperiment {
                         resultPrinter.println(cldlfResult.getResults());
                         System.out.println();
 
-                        top2cldlfResult = top2cldlfGeneration(len, numProps, props, ltl, timeLimit);
-                        resultPrinter.println(top2cldlfResult.getResults());
-                        System.out.println();
+//                        top2cldlfResult = top2cldlfGeneration(len, numProps, props, ltl, timeLimit);
+//                        resultPrinter.println(top2cldlfResult.getResults());
+//                        System.out.println();
 
                         /* check containment both ways for C-LDLf */
                         modelCheckAutomata(timeLimit, ldlf2nfaResult, cldlfResult);
                         modelCheckAutomata(timeLimit, cldlfResult, ldlf2nfaResult);
 
-                        /* check containment both ways for TOP-CLDLf */
-                        modelCheckAutomata(timeLimit, ldlf2nfaResult, top2cldlfResult);
-                        modelCheckAutomata(timeLimit, top2cldlfResult, ldlf2nfaResult);
+//                        /* check containment both ways for TOP-CLDLf */
+//                        modelCheckAutomata(timeLimit, ldlf2nfaResult, top2cldlfResult);
+//                        modelCheckAutomata(timeLimit, top2cldlfResult, ldlf2nfaResult);
 
                         nFormulaGenerated++;
 
@@ -83,7 +84,7 @@ public class RandomFormulaExperiment {
         }
     }
 
-    private static void modelCheckAutomata(long timeLimit, ExperimentResultWrapper a1Result, ExperimentResultWrapper a2Result) {
+    public static void modelCheckAutomata(long timeLimit, ExperimentResultWrapper a1Result, ExperimentResultWrapper a2Result) {
         ModelCheck modelCheck = new ModelCheck<>();
         Automaton a1 = a1Result.getAutomaton();
         Automaton a2 = a2Result.getAutomaton();
@@ -112,7 +113,7 @@ public class RandomFormulaExperiment {
 
     public static ExperimentResultWrapper ldlf2dfaGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
-        boolean minimize = true;
+        boolean minimize = false;
         boolean trim = false;
         boolean printing = false;
         ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
@@ -123,9 +124,13 @@ public class RandomFormulaExperiment {
         long startTime = System.currentTimeMillis();
         LTLfAutomatonResultWrapper mainAutomatonWrapper = Main.ltlfFormula2Aut(formula, signature, declare, minimize, trim, printing, timeLimit);
         Automaton mainAutomaton = mainAutomatonWrapper.getAutomaton();
-        long elapsedTime = System.currentTimeMillis() - startTime;
 
-//        mainAutomaton = new Reducer<>().transform(mainAutomaton);
+        /* if time left, reduce */
+        if ((System.currentTimeMillis() - startTime) < timeLimit) {
+            mainAutomaton = new Reducer<>().transform(mainAutomaton);
+        }
+
+        long elapsedTime = System.currentTimeMillis() - startTime;
 
         printResults(fLength, nProps, mainAutomaton, elapsedTime, "ldlf2nfa");
         boolean empty = new isEmpty<>().test(mainAutomaton);
@@ -173,6 +178,12 @@ public class RandomFormulaExperiment {
         LDLfFormula ldl = formula.toLDLf();
         ldl = (LDLfFormula) ldl.nnf();
         Automaton mainAutomaton = CompAutomatonUtils.ldlf2nfaComp(declare, ldl, signature, timeLimit);
+
+        /* if time left, reduce */
+        if ((System.currentTimeMillis() - startTime) < timeLimit) {
+            mainAutomaton = new Reducer<>().transform(mainAutomaton);
+        }
+
         long elapsedTime = System.currentTimeMillis() - startTime;
 
         printResults(fLength, nProps, mainAutomaton, elapsedTime, "TOP-CLDLf");
