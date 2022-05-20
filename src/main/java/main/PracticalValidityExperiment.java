@@ -1,15 +1,11 @@
 package main;
 
 import formula.ldlf.LDLfFormula;
-import formula.ldlf.LDLfTempAndFormula;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import rationals.Automaton;
-import rationals.properties.ModelCheck;
-import rationals.properties.isEmpty;
 import rationals.transformations.Mix;
 import rationals.transformations.Reducer;
-import utils.AutomatonUtils;
 import utils.CompAutomatonUtils;
 
 import java.io.FileNotFoundException;
@@ -27,14 +23,11 @@ public class PracticalValidityExperiment {
                 ExperimentResultWrapper ldlf2nfaResult;
                 ExperimentResultWrapper cldlfResult;
 
-                ldlf2nfaResult = ldlf2dfaGeneration(num);
+                ldlf2nfaResult = ldlf2nfaGeneration(num);
                 resultPrinter.println(ldlf2nfaResult.getResults());
                 System.out.println();
 
-//                ldlf2dfaGenerationAlt(num);
-//                System.out.println();
-
-                cldlfResult = compositionalGeneration(num);
+                cldlfResult = cldlfGeneration(num);
                 resultPrinter.println(cldlfResult.getResults());
                 System.out.println();
 
@@ -42,17 +35,9 @@ public class PracticalValidityExperiment {
 //                resultPrinter.println(temp);
 //                System.out.println();
 
-                ModelCheck modelCheck = new ModelCheck<>();
-                Automaton ldlf2nfa = ldlf2nfaResult.getAutomaton();
-                Automaton cldlf = cldlfResult.getAutomaton();
-
-                if (modelCheck.test(ldlf2nfa, cldlf) && (bothEmpty(ldlf2nfa, cldlf) || bothNotEmpty(ldlf2nfa, cldlf))) {
-                    System.out.println("Formula OK ");
-                } else {
-                    System.out.println("Formula NOT OK ");
-                    System.out.println(modelCheck.counterExamples());
-                    System.exit(1);
-                }
+                /* check containment both ways for C-LDLf */
+                RandomFormulaExperiment.modelCheckAutomata(Long.MAX_VALUE, ldlf2nfaResult, cldlfResult);
+                RandomFormulaExperiment.modelCheckAutomata(Long.MAX_VALUE, cldlfResult, ldlf2nfaResult);
 
                 System.out.println("--------------------");
                 System.out.println();
@@ -64,7 +49,7 @@ public class PracticalValidityExperiment {
 
     }
 
-    public static ExperimentResultWrapper ldlf2dfaGeneration(int num) {
+    public static ExperimentResultWrapper ldlf2nfaGeneration(int num) {
         boolean declare = true;
         boolean minimize = true;
         boolean trim = false;
@@ -114,42 +99,7 @@ public class PracticalValidityExperiment {
         return resultWrapper;
     }
 
-    //Conjunction of formulae before automaton creation
-    public static Automaton ldlf2dfaGenerationAlt(int num) {
-        long startTime = System.currentTimeMillis();
-
-        boolean declare = true;
-
-        PropositionalSignature signature = generateSignatureInc(num);
-
-        LDLfFormula conjunctionFormula = CompAutomatonUtils.stringToNnfLDLf("true");
-
-        for (int i=0; i<num; i++) {
-            String currentConstraint = getConstraint(i);
-            LDLfFormula constraintFormula = CompAutomatonUtils.stringToNnfLDLf(currentConstraint);
-            conjunctionFormula = new LDLfTempAndFormula(conjunctionFormula, constraintFormula);
-        }
-
-        Automaton mainAutomaton = AutomatonUtils.ldlf2Automaton(declare, conjunctionFormula, signature);
-
-        long elapsedTime = System.currentTimeMillis() - startTime;
-        System.out.println("Time for building the optimized ldl2dfa-automaton for "+ num +" activities is: " + elapsedTime + " ms");
-        System.out.println("Automaton size = " + mainAutomaton.states().size() + " #states and " + mainAutomaton.delta().size() + " #transitions");
-
-//        System.out.print("Running compliant trace... ");
-//        List<String> complLog = generateCompliantLogInc(num);
-//        //System.out.println(complLog);
-//        runTrace(mainAutomaton, complLog);
-//        //System.out.println();
-//        System.out.print("Running uncompliant trace... ");
-//        List<String> uncomplLog = generateUncompliantLogInc(num);
-//        //System.out.println(uncomplLog);
-//        runTrace(mainAutomaton, uncomplLog);
-
-        return mainAutomaton;
-    }
-
-    public static ExperimentResultWrapper compositionalGeneration(int num) {
+    public static ExperimentResultWrapper cldlfGeneration(int num) {
         boolean declare = true;
         ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
 
@@ -160,14 +110,11 @@ public class PracticalValidityExperiment {
         long startTime = System.currentTimeMillis();
         long timeConstraints = 0;
 
-        //Original implementation
         Automaton mainAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctionFormula, signature);
 
         for (int i=0; i<num; i++) {
             String currentConstraint = getConstraint(i);
-//            conjunctionFormula = new LDLfTempAndFormula(conjunctionFormula, constraintFormula);
 
-            //Original implementation
             long constraintTimeStart = System.currentTimeMillis();
             LDLfFormula constraintFormula = CompAutomatonUtils.stringToNnfLDLf(currentConstraint);
             Automaton currentAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, constraintFormula, signature);
@@ -176,8 +123,6 @@ public class PracticalValidityExperiment {
             mainAutomaton = new Mix<>().transform(mainAutomaton, currentAutomaton);
             mainAutomaton = new Reducer<>().transform(mainAutomaton);
         }
-
-//        Automaton mainAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, conjunctionFormula, signature);
 
         long elapsedTime = System.currentTimeMillis() - startTime;
         double timeConstraintRatio = (double) timeConstraints / elapsedTime;
@@ -221,7 +166,6 @@ public class PracticalValidityExperiment {
             Automaton currentAutomaton = CompAutomatonUtils.LDLfToAutomaton(declare, constraintFormula, signature);
             timeConstraints += System.currentTimeMillis() - constraintTimeStart;
 
-//            currentAutomaton = new Reducer<>().transform(currentAutomaton); //Not necessary
             queue.add(currentAutomaton);
         }
 
@@ -229,7 +173,7 @@ public class PracticalValidityExperiment {
             Automaton a1 = queue.poll();
             Automaton a2 = queue.poll();
             Automaton a3 = new Mix<>().transform(a1, a2);
-            a3 = new Reducer<>().transform(a3); // Mem out if not used
+            a3 = new Reducer<>().transform(a3);
             queue.add(a3);
         }
         Automaton mainAutomaton = queue.poll();
@@ -324,11 +268,4 @@ public class PracticalValidityExperiment {
         return constraints[currConstraint];
     }
 
-    private static boolean bothNotEmpty(Automaton ldlf2nfa, Automaton cldlf) {
-        return !(new isEmpty<>().test(ldlf2nfa)) && !(new isEmpty<>().test(cldlf));
-    }
-
-    private static boolean bothEmpty(Automaton ldlf2nfa, Automaton cldlf) {
-        return new isEmpty<>().test(ldlf2nfa) && new isEmpty<>().test(cldlf);
-    }
 }
