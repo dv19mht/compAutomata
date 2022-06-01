@@ -18,6 +18,9 @@ import java.util.Set;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class CompAutomataTest {
 
     /*

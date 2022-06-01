@@ -5,6 +5,9 @@ import org.junit.Test;
 
 import java.util.*;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class RandomFormulaTest {
     Random random = new Random();
     List<Proposition> propList;
