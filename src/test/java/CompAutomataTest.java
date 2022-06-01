@@ -1,6 +1,6 @@
 import formula.ldlf.*;
 import formula.ltlf.LTLfFormula;
-import formula.regExp.RegExp;
+import formula.quotedFormula.QuotedVar;
 import net.sf.tweety.logics.pl.syntax.Proposition;
 import net.sf.tweety.logics.pl.syntax.PropositionalSignature;
 import org.junit.Test;
@@ -11,34 +11,44 @@ import rationals.transformations.*;
 import utils.AutomatonUtils;
 import utils.CompAutomatonUtils;
 import utils.ParserUtils;
+import automaton.QuotedFormulaStateFactory.QuotedFormulaState;
+
+import java.util.Set;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class CompAutomataTest {
 
+    /*
+     * various formulae where bugs where found
+     */
     @Test
-    public void specialFormulaTest() {
+    public void weirdFormulaeTest() {
         boolean declare = true;
         PropositionalSignature ps;
         LTLfFormula ltLfFormula;
         LDLfFormula ldlfFormula;
 
-        //[*((?(<*((?(<a>(tt))) ; (true))>((<(a) AND (b)>(tt)) TeAND (<true>(tt))))) ; (true))](([c](ff)) TeOR ([true](ff)))
-//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff)))", declare, ps);
-
-        //<*((?(<NOT(b)>(tt))) ; (true))>((<true>((<b>(tt)) TeAND (<true>(tt)))) TeAND (<true>(tt)))
-//        compareAutomataOnLDL("<(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
-
+//        //[*((?(<*((?(<a>(tt))) ; (true))>((<(a) AND (b)>(tt)) TeAND (<true>(tt))))) ; (true))](([c](ff)) TeOR ([true](ff)))
+//        ldlfFormula = ParserUtils.parseLDLfFormula("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff)))");
+//        ps = ldlfFormula.getSignature();
+//        compareCldlfOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff)))", declare, ps);
+//
+//        //<*((?(<NOT(b)>(tt))) ; (true))>((<true>((<b>(tt)) TeAND (<true>(tt)))) TeAND (<true>(tt)))
+//        ldlfFormula = ParserUtils.parseLDLfFormula("<(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))");
+//        ps = ldlfFormula.getSignature();
+//        compareCldlfOnLDL("<(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
+//
 //        ltLfFormula = ParserUtils.parseLTLfFormula("((!((a) U ((a) && (b)))) R (!(c))) && ((!(b)) U (X(b)))");
 //        ps = ltLfFormula.getSignature();
-//        compareAutomataOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff))) && <(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
-
+//        compareCldlfOnLDL("[(((<(((<a>(tt))?) ; (true))*>((<(a) && (b)>(tt)) && (<true>(tt))))?) ; (true))*](([c](ff)) || ([true](ff))) && <(((<!(b)>(tt))?) ; (true))*>((<true>((<b>(tt)) && (<true>(tt)))) && (<true>(tt)))", declare, ps);
+//
 //        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))");
 //        ps = ltLfFormula.getSignature();
-//        compareAutomataOnLTL("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))", declare, ps);
+//        compareCldlfOnLTL("((!(!(!(b)))) U (X(((a) R (!(a))) R (X(c))))) && (((!(b)) R (!(((b) || (b)) && (c)))) R (b))", declare, ps);
 
-//        // formula below actually takes much longer for c-ldlf (due to stripping of the last TeAND (b) )
+        // formula below actually takes much longer for c-ldlf (due to stripping of the last TeAND (b) )
 //        //((TeNOT(TeNOT(TeNOT(((((NOT(a)) U (c)) U (X((NOT(c)) R (a)))) TeAND (X(a))) TeOR (((X(b)) R (X(c))) TeOR (a)))))) U ((b) U (b))) TeAND (b)
 //        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)");
 //        ldlfFormula = ltLfFormula.toLDLf();
@@ -58,221 +68,288 @@ public class CompAutomataTest {
 
 //        compareAutomataOnLTLTime("((!(!(!(((((!(a)) U (c)) U (X((!(c)) R (a)))) && (X(a))) || (((X(b)) R (X(c))) || (a)))))) U ((b) U (b))) && (b)", declare, ps);
 
-        //((a) U (X(i))) TeAND (X(X((X(((i) TeOR (h)) R (j))) TeAND (h))))
-        ltLfFormula = ParserUtils.parseLTLfFormula("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))");
+//        //((a) U (X(i))) TeAND (X(X((X(((i) TeOR (h)) R (j))) TeAND (h))))
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))");
+//        ps = ltLfFormula.getSignature();
+//        compareCldlfOnLTL("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))", declare, ps);
+//
+//        //((TeNOT(TeNOT(NOT(e)))) U (X(((e) R (NOT(a))) R (X(d))))) TeAND (((NOT(h)) R (TeNOT(((h) TeOR (j)) TeAND (j)))) R (h))
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(e)))) U (X(((e) R (!(a))) R (X(d))))) && (((!(h)) R (!(((h) || (j)) && (j)))) R (h))");
+//        ps = ltLfFormula.getSignature();
+//        compareCldlfOnLTL("((!(!(!(e)))) U (X(((e) R (!(a))) R (X(d))))) && (((!(h)) R (!(((h) || (j)) && (j)))) R (h))", declare, ps);
+//
+//        //((!(!(!(e)))) U (X(((e) R (!(a))) R (X(d)))))
+//        //&& (((!(h)) R (!(((h) || (j)) && (j)))) R (h))
+//        ltLfFormula = ParserUtils.parseLTLfFormula("((!(!(!(e)))) U (X(((e) R (!(a))) R (X(d)))))");
+//        ps = ltLfFormula.getSignature();
+//        compareCldlfOnLTL("((!(!(!(e)))) U (X(((e) R (!(a))) R (X(d)))))", declare, ps);
+//
+//        //(TeNOT((NOT(a)) U (g))) TeAND (TeNOT(TeNOT(X((TeNOT(X(((h) R (NOT(h))) R (X(j))))) TeOR (f)))))
+//        ltLfFormula = ParserUtils.parseLTLfFormula("(!((!(a)) U (g))) && (!(!(X((!(X(((h) R (!(h))) R (X(j))))) || (f)))))");
+//        ps = ltLfFormula.getSignature();
+//        compareTopCldlfOnLTL("(!((!(a)) U (g))) && (!(!(X((!(X(((h) R (!(h))) R (X(j))))) || (f)))))", declare, ps);
+
+        // TopCLDLf takes much longer than LDLf2NFA
+        //(TeNOT(((X(X(d))) U (X(c))) R ((X(X(NOT(b)))) TeAND (NOT(b))))) TeAND ((X(h)) TeAND ((TeNOT(X(i))) R (TeNOT((TeNOT(TeNOT(X(a)))) TeOR (j)))))
+
+        //(((((i) R (X(b))) TeAND (((TeNOT((X(NOT(c))) U ((e) TeAND ((NOT(c)) TeAND ((c) TeOR (g)))))) U ((e) TeAND (f))) TeAND (X((h) U (e))))) R (X(h))) U (e)) TeAND (X(a))
+
+        //2580s c-ldlf, 12s ldlf2nfa, gives heap space error when used only with ldlf2nfaComp
+        //((TeNOT(X(((X((c) R (c))) R (X(d))) R (f)))) U (X((NOT(h)) TeOR (X((f) TeOR (X(TeNOT(X(NOT(a)))))))))) TeAND ((X(e)) U (X(g)))
+
+//        //7282 states c-ldlf, 78 states ldlf2nfa (only happens when time out set to 100s, no error when running full time)
+//        //(((((a) U (j)) TeAND ((c) TeAND ((e) TeAND (X(c))))) R ((b) U (b))) TeOR (c)) TeAND ((TeNOT(((e) TeAND (X((((c) U (a)) R (X(f))) U (NOT(a))))) U (((X(NOT(j))) U (g)) R (f)))) U (d))
+        ltLfFormula = ParserUtils.parseLTLfFormula("(((((a) U (j)) && ((c) && ((e) && (X(c))))) R ((b) U (b))) || (c)) && ((!(((e) && (X((((c) U (a)) R (X(f))) U (!(a))))) U (((X(!(j))) U (g)) R (f)))) U (d))");
         ps = ltLfFormula.getSignature();
-        compareAutomataOnLTL("((a) U (X(i))) && (X(X((X(((i) || (h)) R (j))) && (h))))", declare, ps);
+        compareCldlfOnLTL("(((((a) U (j)) && ((c) && ((e) && (X(c))))) R ((b) U (b))) || (c)) && ((!(((e) && (X((((c) U (a)) R (X(f))) U (!(a))))) U (((X(!(j))) U (g)) R (f)))) U (d))", declare, ps);
+    }
+
+    private void compareTopWeirdFormula(String input) {
+        boolean declare = true;
+        LTLfFormula ltLfFormula = ParserUtils.parseLTLfFormula(input);
+        LDLfFormula ldlfFormula = (LDLfFormula) ltLfFormula.toLDLf().nnf();
+        PropositionalSignature ps = ldlfFormula.getSignature();
+        System.out.println(ldlfFormula);
+
+        Automaton a1 = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps, 100000);
+        System.out.println("states " + a1.states().size() + " trans " + a1.delta().size());
+//        printAutomatonStates(a1);
+        a1 = new Reducer<>().transform(a1);
+        System.out.println("reduced:");
+        System.out.println("states " + a1.states().size() + " trans " + a1.delta().size());
+        System.out.println();
+
+        Automaton a2 = CompAutomatonUtils.LDLfToAutomaton(declare, ldlfFormula, ps, System.currentTimeMillis(), 100000);
+        System.out.println("states " + a2.states().size() + " trans " + a2.delta().size());
+//        printAutomatonStates(a2);
+        a2 = new Reducer<>().transform(a2);
+        System.out.println("reduced:");
+        System.out.println("states " + a2.states().size() + " trans " + a2.delta().size());
+    }
+
+    private void printAutomatonStates(Automaton automaton) {
+        for (QuotedFormulaState s : (Set<QuotedFormulaState>) automaton.states()) {
+            Set<QuotedVar> formulaSet = s.getFormulaSet();
+            if (formulaSet != null && !formulaSet.isEmpty()) {
+                System.out.println(s + " " + s.getQuotedConjunction());
+            } else {
+                System.out.println(s);
+            }
+        }
     }
 
     @Test
-    public void ldlf2nfaCompTest() {
+    public void compareTopCldlfOnLTLTest() {
         boolean declare = true;
         PropositionalSignature ps = generateSignature();
-        LTLfFormula ltLfFormula;
 
-//        compareLdlf2nfaWithLdlf2nfaComp("true", declare, ps); //<true>tt
+        compareTopCldlfOnLTL("true", declare, ps); //<true>tt
 
-//        compareLdlf2nfaWithLdlf2nfaComp("false", declare, ps); //<false>tt
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("a", declare, ps); //<a>tt
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("!true", declare, ps); //<false>tt
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("!false", declare, ps); //<true>tt
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("!a", declare, ps); //<!a>tt
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("F(a)", declare, ps);
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("G(a)", declare, ps);
+        compareTopCldlfOnLTL("false", declare, ps); //<false>tt
 
-//        compareLdlf2nfaWithLdlf2nfaComp("a U b", declare, ps); // RE_TEST
+        compareTopCldlfOnLTL("a", declare, ps); //<a>tt
 
-//        compareLdlf2nfaWithLdlf2nfaComp("a W b", declare, ps); // RE_TEST
+        compareTopCldlfOnLTL("!true", declare, ps); //<false>tt
+
+        compareTopCldlfOnLTL("!false", declare, ps); //<true>tt
+
+        compareTopCldlfOnLTL("!a", declare, ps); //<!a>tt
+
+        compareTopCldlfOnLTL("F(a)", declare, ps);
+
+        compareTopCldlfOnLTL("G(a)", declare, ps);
+
+        compareTopCldlfOnLTL("a U b", declare, ps); // RE_TEST
+
+        compareTopCldlfOnLTL("a W b", declare, ps); // RE_TEST
+
+        compareTopCldlfOnLTL("a R b", declare, ps); // RE_TEST
+
+        compareTopCldlfOnLTL("a <-> b", declare, ps);
+
+        compareTopCldlfOnLTL("last", declare, ps);
+    }
+
+    @Test
+    public void compareCldlfOnLDLTest() {
+        boolean declare = true;
+        PropositionalSignature ps = generateSignature();
+
+        compareCldlfOnLDL("tt", declare, ps);
+
+        compareCldlfOnLDL("ff", declare, ps);
+
+        compareCldlfOnLDL("!(tt)", declare, ps);
+
+        compareCldlfOnLDL("!(ff)", declare, ps);
+
+        // diamond formulae
+        compareCldlfOnLDL("<true>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<true>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<false>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<false>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<a>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<a>(ff)", declare, ps);
+
+        // box formulae
+        compareCldlfOnLDL("[true](tt)", declare, ps);
+
+        compareCldlfOnLDL("[true](ff)", declare, ps); // end
+
+        compareCldlfOnLDL("[false](tt)", declare, ps);
+
+        compareCldlfOnLDL("[false](ff)", declare, ps);
+
+        compareCldlfOnLDL("[a](tt)", declare, ps);
+
+        compareCldlfOnLDL("[a](ff)", declare, ps);
+
+        compareCldlfOnLDL("[!(a)](tt)", declare, ps);
+
+        compareCldlfOnLDL("[!(a)](ff)", declare, ps);
+
+        // star diamond formulae
+        compareCldlfOnLDL("<(true)*>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(true)*>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(false)*>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(false)*>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(a)*>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(a)*>(ff)", declare, ps);
 //
-//        compareLdlf2nfaWithLdlf2nfaComp("a R b", declare, ps); // RE_TEST
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("a <-> b", declare, ps);
-//
-//        compareLdlf2nfaWithLdlf2nfaComp("last", declare, ps);
+//        // star box formulae
+        compareCldlfOnLDL("[(true)*](tt)", declare, ps);
 
-//        compareAutomataOnLTL("a U b", declare, ps);
+        compareCldlfOnLDL("[(true)*](ff)", declare, ps);
 
-//        compareAutomataOnLTL("((!((a) U ((a) && (b)))) R (!(c))) && ((!(b)) U (X(b)))", declare, ps);
+        compareCldlfOnLDL("[(false)*](tt)", declare, ps);
 
-//        compareAutomataOnLTL("((!(b)) U (X(b)))", declare, ps);
+        compareCldlfOnLDL("[(false)*](ff)", declare, ps);
 
+        compareCldlfOnLDL("[(a)*](tt)", declare, ps);
 
+        compareCldlfOnLDL("[(a)*](ff)", declare, ps);
+
+        // test formulae
+        compareCldlfOnLDL("<(<true>tt)?>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<true>tt)?>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(<false>tt)?>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<false>tt)?>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(<a>tt)?>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<a>tt)?>(ff)", declare, ps);
+
+        // concat formulae
+        compareCldlfOnLDL("<(<true>tt)? ; true>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<true>tt)? ; true>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(<false>tt)? ; true>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<false>tt)? ; true>(ff)", declare, ps);
+
+        compareCldlfOnLDL("<(<a>tt)? ; true>(tt)", declare, ps);
+
+        compareCldlfOnLDL("<(<a>tt)? ; true>(ff)", declare, ps);
+    }
+
+    @Test
+    public void compareCldlfOnLTLTest() {
+        boolean declare = true;
+        PropositionalSignature ps = generateSignature();
+
+        compareCldlfOnLTL("true", declare, ps); //<true>tt
+
+        compareCldlfOnLTL("false", declare, ps); //<false>tt
+
+        compareCldlfOnLTL("a", declare, ps); //<a>tt
+
+        compareCldlfOnLTL("!true", declare, ps); //<false>tt
+
+        compareCldlfOnLTL("!false", declare, ps); //<true>tt
+
+        compareCldlfOnLTL("!a", declare, ps); //<!a>tt
+
+        compareCldlfOnLTL("F(a)", declare, ps);
+
+        compareCldlfOnLTL("G(a)", declare, ps);
+
+        compareCldlfOnLTL("a U b", declare, ps); // RE_TEST
+
+        compareCldlfOnLTL("a W b", declare, ps); // RE_TEST
+
+        compareCldlfOnLTL("a R b", declare, ps); // RE_TEST
+
+        compareCldlfOnLTL("a <-> b", declare, ps);
+
+        compareCldlfOnLTL("last", declare, ps);
     }
 
     @Test
     public void findTestFormula() {
         boolean hasTest;
-        hasTest = checkRegExp("a U b");
-        assertTrue(hasTest);
 
-//        hasTest = checkRegExp("a W b");
-//        assertTrue(hasTest);
-
-        hasTest = checkRegExp("a R b");
-        assertTrue(hasTest);
-
-        hasTest = checkRegExp("F(a)");
+        hasTest = checkForTestsTest("true");
         assertFalse(hasTest);
 
-        hasTest = checkRegExp("G(a)");
+        hasTest = checkForTestsTest("false");
+        assertFalse(hasTest);
+
+        hasTest = checkForTestsTest("a");
+        assertFalse(hasTest);
+
+        hasTest = checkForTestsTest("F(a)");
+        assertFalse(hasTest);
+
+        hasTest = checkForTestsTest("G(a)");
+        assertFalse(hasTest);
+
+        hasTest = checkForTestsTest("a U b");
+        assertTrue(hasTest);
+
+        hasTest = checkForTestsTest("a W b");
+        assertTrue(hasTest);
+
+        hasTest = checkForTestsTest("a R b");
+        assertTrue(hasTest);
+
+        hasTest = checkForTestsTest("a <-> b");
+        assertFalse(hasTest);
+
+        hasTest = checkForTestsTest("last");
         assertFalse(hasTest);
     }
 
-    private boolean checkRegExp(String input) {
-        LTLfFormula ltl = ParserUtils.parseLTLfFormula(input);
-        LDLfFormula ldl = ltl.toLDLf();
-        ldl = (LDLfFormula) ldl.nnf();
-        RegExp regExp = ((LDLfTempOpTempFormula) ldl).getRegExp();
-        return CompAutomatonUtils.checkRegExpHasTest(regExp);
-    }
-
-    @Test
-    public void compLDLToAutomataTest() {
-        boolean declare = true;
-        PropositionalSignature ps = generateSignature();
-
-        compareAutomataOnLDL("tt", declare, ps);
-
-        compareAutomataOnLDL("ff", declare, ps);
-
-        compareAutomataOnLDL("!(tt)", declare, ps);
-
-        compareAutomataOnLDL("!(ff)", declare, ps);
-
-        // diamond formulae
-        compareAutomataOnLDL("<true>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<true>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<false>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<false>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<a>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<a>(ff)", declare, ps);
-
-        // box formulae
-        compareAutomataOnLDL("[true](tt)", declare, ps);
-
-        compareAutomataOnLDL("[true](ff)", declare, ps); // end
-
-        compareAutomataOnLDL("[false](tt)", declare, ps);
-
-        compareAutomataOnLDL("[false](ff)", declare, ps);
-
-        compareAutomataOnLDL("[a](tt)", declare, ps);
-
-        compareAutomataOnLDL("[a](ff)", declare, ps);
-
-        compareAutomataOnLDL("[!(a)](tt)", declare, ps);
-
-        compareAutomataOnLDL("[!(a)](ff)", declare, ps);
-
-        // star diamond formulae
-        compareAutomataOnLDL("<(true)*>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(true)*>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(false)*>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(false)*>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(a)*>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(a)*>(ff)", declare, ps);
-//
-//        // star box formulae
-        compareAutomataOnLDL("[(true)*](tt)", declare, ps);
-
-        compareAutomataOnLDL("[(true)*](ff)", declare, ps);
-
-        compareAutomataOnLDL("[(false)*](tt)", declare, ps);
-
-        compareAutomataOnLDL("[(false)*](ff)", declare, ps);
-
-        compareAutomataOnLDL("[(a)*](tt)", declare, ps);
-
-        compareAutomataOnLDL("[(a)*](ff)", declare, ps);
-
-        // test formulae
-        compareAutomataOnLDL("<(<true>tt)?>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<true>tt)?>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(<false>tt)?>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<false>tt)?>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(<a>tt)?>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<a>tt)?>(ff)", declare, ps);
-
-        // concat formulae
-        compareAutomataOnLDL("<(<true>tt)? ; true>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<true>tt)? ; true>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(<false>tt)? ; true>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<false>tt)? ; true>(ff)", declare, ps);
-
-        compareAutomataOnLDL("<(<a>tt)? ; true>(tt)", declare, ps);
-
-        compareAutomataOnLDL("<(<a>tt)? ; true>(ff)", declare, ps);
-    }
-
-    private Automaton compAutomataFromString(String input, boolean declare, PropositionalSignature ps) {
-        LDLfFormula ldlfFormula = ParserUtils.parseLDLfFormula(input);
-        ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
-
-        Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, ldlfFormula, ps);
-        comp = new Reducer<>().transform(comp);
-
-        return comp;
-    }
-
-    @Test
-    public void compLTLToAutomataTest() {
-        boolean declare = true;
-        PropositionalSignature ps = generateSignature();
-
-        compareAutomataOnLTL("true", declare, ps); //<true>tt
-
-        compareAutomataOnLTL("false", declare, ps); //<false>tt
-
-        compareAutomataOnLTL("a", declare, ps); //<a>tt
-
-        compareAutomataOnLTL("!true", declare, ps); //<false>tt
-
-        compareAutomataOnLTL("!false", declare, ps); //<true>tt
-
-        compareAutomataOnLTL("!a", declare, ps); //<!a>tt
-
-        compareAutomataOnLTL("F(a)", declare, ps);
-
-        compareAutomataOnLTL("G(a)", declare, ps);
-
-        compareAutomataOnLTL("a U b", declare, ps); // RE_TEST
-
-        compareAutomataOnLTL("a W b", declare, ps); // RE_TEST
-
-        compareAutomataOnLTL("a R b", declare, ps); // RE_TEST
-
-        compareAutomataOnLTL("a <-> b", declare, ps);
-
-        compareAutomataOnLTL("last", declare, ps);
-    }
-
-    private void compareLdlf2nfaWithLdlf2nfaComp(String input, boolean declare, PropositionalSignature ps) {
+    private void compareTopCldlfOnLTL(String input, boolean declare, PropositionalSignature ps) {
         LTLfFormula ltlfFormula = ParserUtils.parseLTLfFormula(input);
         LDLfFormula ldlfFormula = ltlfFormula.toLDLf();
+        ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
+
+        Automaton comp = CompAutomatonUtils.ldlf2nfaComp(declare, ldlfFormula, ps, Long.MAX_VALUE);
+        comp = new Reducer<>().transform(comp);
+
+        Automaton ldlf2nfa = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
+        ldlf2nfa = new Reducer<>().transform(ldlf2nfa);
+
+        System.out.println("Formula: " + ldlfFormula);
+        modelCheckAutomata(ldlf2nfa, comp);
+    }
+
+    private void compareTopCldlfOnLDL(String input, boolean declare, PropositionalSignature ps) {
+        LDLfFormula ldlfFormula = ParserUtils.parseLDLfFormula(input);
         ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
 
         Automaton comp = CompAutomatonUtils.ldlf2nfaComp(declare, ldlfFormula, ps, Long.MAX_VALUE);
@@ -281,14 +358,11 @@ public class CompAutomataTest {
         Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
         ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
 
-//        if (!(new ModelCheck<>().test(ldlf2dfa, comp))) {
-            printComparison(ldlf2dfa, comp, ldlfFormula);
-//        } else {
-//            System.out.println("Formula: " + ldlfFormula + " was OK");
-//        }
+        System.out.println("Formula: " + ldlfFormula);
+        modelCheckAutomata(ldlf2dfa, comp);
     }
 
-    private void compareAutomataOnLTL(String input, boolean declare, PropositionalSignature ps) {
+    private void compareCldlfOnLTL(String input, boolean declare, PropositionalSignature ps) {
         LTLfFormula ltlfFormula = ParserUtils.parseLTLfFormula(input);
         LDLfFormula ldlfFormula = ltlfFormula.toLDLf();
         ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
@@ -299,22 +373,14 @@ public class CompAutomataTest {
         Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
         ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
 
-        if (new ModelCheck<>().test(ldlf2dfa, comp) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
-            System.out.println("Formula: " + ldlfFormula + " was OK");
-        } else {
-            System.out.println("Formula NOT OK");
-            printComparison(ldlf2dfa, comp, ldlfFormula);
-        }
+        System.out.println("Formula: " + ldlfFormula);
+        modelCheckAutomata(ldlf2dfa, comp);
     }
 
-    private void compareAutomataOnLTLTime(String input, boolean declare, PropositionalSignature ps) {
+    private void compareCldlfOnLTLTime(String input, boolean declare, PropositionalSignature ps) {
         LTLfFormula ltlfFormula = ParserUtils.parseLTLfFormula(input);
         LDLfFormula ldlfFormula = ltlfFormula.toLDLf();
         ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
-
-//        try {
-//            Thread.sleep(3000);
-//        } catch (InterruptedException e) {}
 
         long compStart = System.currentTimeMillis();
         Automaton comp = CompAutomatonUtils.LDLfToAutomaton(declare, ldlfFormula, ps);
@@ -327,18 +393,14 @@ public class CompAutomataTest {
         ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
         long ldlf2nfaElapsed = System.currentTimeMillis() - ldlf2nfaStart;
 
-        if (new ModelCheck<>().test(ldlf2dfa, comp) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
-            System.out.println("Formula: " + ldlfFormula + " was OK");
-        } else {
-            System.out.println("Formula NOT OK");
-            printComparison(ldlf2dfa, comp, ldlfFormula);
-        }
+        System.out.println("Formula: " + ldlfFormula);
+        modelCheckAutomata(ldlf2dfa, comp);
 
         System.out.println("Time comp: " + compElapsed);
         System.out.println("Time ldlf2nfa: " + ldlf2nfaElapsed);
     }
 
-    private void compareAutomataOnLDL(String input, boolean declare, PropositionalSignature ps) {
+    private void compareCldlfOnLDL(String input, boolean declare, PropositionalSignature ps) {
         LDLfFormula ldlfFormula = ParserUtils.parseLDLfFormula(input);
         ldlfFormula = (LDLfFormula) ldlfFormula.nnf();
 
@@ -348,12 +410,31 @@ public class CompAutomataTest {
         Automaton ldlf2dfa = AutomatonUtils.ldlf2Automaton(declare, ldlfFormula, ps);
         ldlf2dfa = new Reducer<>().transform(ldlf2dfa);
 
-        if (new ModelCheck<>().test(ldlf2dfa, comp) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
-            System.out.println("Formula: " + ldlfFormula + " was OK");
+        System.out.println("Formula: " + ldlfFormula);
+        modelCheckAutomata(ldlf2dfa, comp);
+    }
+
+    private void modelCheckAutomata(Automaton ldlf2dfa, Automaton comp) {
+        ModelCheck modelCheck = new ModelCheck<>();
+
+        if (modelCheck.test(ldlf2dfa, comp) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
+            System.out.println("Formula OK");
         } else {
-            printComparison(ldlf2dfa, comp, ldlfFormula);
+            System.out.println("Formula NOT OK");
+            printComparison(ldlf2dfa, comp);
         }
 
+        if (modelCheck.test(comp, ldlf2dfa) && (bothEmpty(comp, ldlf2dfa) || bothNotEmpty(comp, ldlf2dfa))) {
+            System.out.println("Formula OK");
+        } else {
+            System.out.println("Formula NOT OK");
+            printComparison(ldlf2dfa, comp);
+        }
+    }
+
+    private boolean checkForTestsTest(String input) {
+        LDLfFormula ldl = CompAutomatonUtils.stringToNnfLDLf(input);
+        return CompAutomatonUtils.checkForTestWithinStar(ldl);
     }
 
     private boolean bothNotEmpty(Automaton comp, Automaton ldlf2dfa) {
@@ -376,14 +457,12 @@ public class CompAutomataTest {
         return ps;
     }
 
-    private void printComparison(Automaton ldlf2dfa, Automaton comp, LDLfFormula formula) {
-        System.out.println("Formula: " + formula + "\n");
-
-        System.out.println("LDLf2DFA:");
+    private void printComparison(Automaton ldlf2dfa, Automaton comp) {
+        System.out.println("LDLf2NFA:");
         System.out.println(ldlf2dfa.toString());
         System.out.println("------------------------\n");
 
-        System.out.println("Compositional:");
+        System.out.println("C-LDLf:");
         System.out.println(comp.toString());
         System.out.println("------------------------\n");
     }
