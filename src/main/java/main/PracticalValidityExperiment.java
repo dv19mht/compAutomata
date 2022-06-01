@@ -13,6 +13,9 @@ import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class PracticalValidityExperiment {
 
     public static void main(String[] args) {

@@ -50,19 +50,17 @@ public class CompAutomatonUtils {
             automaton = binaryToAutomaton(declare, (BinaryFormula) formula, ps, timeStarted, timeLimit);
         } else if (formula instanceof LDLfDiamondFormula) {
             if (checkForTestWithinStar(formula)) {
-                // calc time left
+                /* calc time left */
                 long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
-//                automaton = AutomatonUtils.ldlf2Automaton(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = diamondToAutomaton(declare, (LDLfDiamondFormula) formula, ps, timeStarted, timeLimit);
             }
         } else if (formula instanceof LDLfBoxFormula) {
             if (checkForTestWithinStar(formula)) {
-                // calc time left
+                /* calc time left */
                 long timeLeft = timeLimit - (System.currentTimeMillis() - timeStarted);
                 automaton = ldlf2nfaComp(declare, (LDLfFormula) formula, ps, timeLeft);
-//                automaton = AutomatonUtils.ldlf2Automaton(declare, (LDLfFormula) formula, ps, timeLeft);
             } else {
                 automaton = boxToAutomaton(declare, (LDLfBoxFormula) formula, ps, timeStarted, timeLimit);
             }
@@ -272,10 +270,9 @@ public class CompAutomatonUtils {
                 hasTest = checkForTestWithinStar(nestedRight, hasStar);
             }
         } else if (formula instanceof LDLfTempOpTempFormula) {
-            nestedLeft = ((LDLfTempOpTempFormula) formula).getRegExp();
-
-            hasTest = checkForTestWithinStar(nestedLeft, hasStar);
             /* ignore checking goal formula, only regexp is of interest */
+            nestedLeft = ((LDLfTempOpTempFormula) formula).getRegExp();
+            hasTest = checkForTestWithinStar(nestedLeft, hasStar);
         } else {
             throw new IllegalArgumentException("Unknown formula type: " + formula);
         }
@@ -332,7 +329,7 @@ public class CompAutomatonUtils {
     }
 
 
-    /* ------ ldl2nfa compositional ------ */
+    /* ------ ldlf2nfa compositional ------ */
 
     public static Automaton ldlf2nfaComp(boolean declare, LDLfFormula initialFormula, PropositionalSignature ps, long timeLimit) {
         long timeStarted = System.currentTimeMillis();

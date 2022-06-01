@@ -16,6 +16,9 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * @author Mathias Hedqvist 2022-06-03
+ */
 public class RandomFormulaExperiment {
 
     public static void main(String[] args) {
@@ -111,6 +114,9 @@ public class RandomFormulaExperiment {
         return new isEmpty<>().test(ldlf2nfa) && new isEmpty<>().test(cldlf);
     }
 
+    /*
+    Uses LDLf2NFA algorithm
+     */
     public static ExperimentResultWrapper ldlf2dfaGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
         boolean minimize = false;
@@ -143,6 +149,9 @@ public class RandomFormulaExperiment {
         return resultWrapper;
     }
 
+    /*
+    Uses C-LDLf algorithm
+     */
     public static ExperimentResultWrapper cldlfGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
         ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
@@ -167,6 +176,9 @@ public class RandomFormulaExperiment {
         return resultWrapper;
     }
 
+    /*
+    Uses the compositional ldlf2nfa algorithm
+     */
     public static ExperimentResultWrapper top2cldlfGeneration(int fLength, int nProps, List<Proposition> props, LTLfFormula formula, long timeLimit) {
         boolean declare = true;
         ExperimentResultWrapper resultWrapper = new ExperimentResultWrapper();
