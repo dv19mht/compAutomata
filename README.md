@@ -1,5 +1,5 @@
 # compAutomata
-compAutomata is an experimental implementation of a compositional, bottom-up, algorithm to translate LTLf and LDLf formulae, based on the paper "Compositional Approach to Translate LTLf/LDLf into Deterministic Finite Automata". It is built using the FLLOAT library. For details see below.
+compAutomata is an experimental implementation of a compositional, bottom-up, algorithm to translate LTLf and LDLf formulae to automata, based on the paper "Compositional Approach to Translate LTLf/LDLf into Deterministic Finite Automata". It is built using the FLLOAT library. For details see below.
 This implementation is made for experimental purposes only and comes with no warranties.
 
 # FLLOAT
